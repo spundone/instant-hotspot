@@ -106,6 +106,19 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
             hint.setText(R.string.ob_pairing_hint_controller)
             hostCard.visibility = View.GONE
             ctrlCard.visibility = View.VISIBLE
+            val obcSecret = view.findViewById<TextInputEditText>(R.id.obcSecret)
+            view.findViewById<MaterialButton>(R.id.obcSaveManual).setOnClickListener {
+                saveControllerManualSecret(obcSecret)
+            }
+            if (obcSecret != null && !obcSecret.isFocused) {
+                obcSecret.setText(
+                    if (AppPrefs.hasNonDefaultSecret(requireContext())) {
+                        AppPrefs.sharedSecret(requireContext())
+                    } else {
+                        ""
+                    },
+                )
+            }
             val start = view.findViewById<MaterialButton>(R.id.obcStart)
             val confirm = view.findViewById<MaterialButton>(R.id.obcConfirm)
             start.setOnClickListener { startPairing(confirm) }
@@ -222,6 +235,22 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         Toast.makeText(requireContext(), R.string.secret_saved, Toast.LENGTH_SHORT).show()
         requireContext().startService(Intent(requireContext(), HostBleService::class.java))
         refreshHost()
+    }
+
+    /** Same behavior as [com.spandan.instanthotspot.MainActivity.saveManualSecret] for the Pair card. */
+    private fun saveControllerManualSecret(sec: TextInputEditText) {
+        val value = sec.text?.toString()?.trim().orEmpty()
+        if (value.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        AppPrefs.setSharedSecret(requireContext(), value)
+        AppPrefs.setClientPaired(requireContext(), true)
+        AppPrefs.setLastPairedHost(requireContext(), "manual-secret")
+        AppPrefs.setPairedHostDisplayName(requireContext(), "Manual")
+        DebugLog.append(requireContext(), "OB", "Controller manual/pasted secret in onboarding")
+        updatePairedBanner()
+        Toast.makeText(requireContext(), R.string.manual_pair_saved, Toast.LENGTH_SHORT).show()
     }
 
     private fun shareHostPassphrase() {

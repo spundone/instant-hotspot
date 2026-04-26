@@ -84,18 +84,25 @@ object OnboardingV2 {
     }
 
     /**
-     * Mark the walkthrough finished. The main home is always **controller** (minimal remote) after
-     * onboarding; the user can switch to host or full console from the app. Uses
-     * SharedPreferences commit() so the next Activity after recreate() reads updated prefs.
+     * Mark the walkthrough finished. If [KEY_MODE] is already **host** (user verified the host
+     * gate on the role step and [commitHostMode] ran), keep **host** and the **full** console; do
+     * not drop them into the controller simple home, which is wrong and was causing post-onboarding
+     * crashes and inconsistent state. Controllers: **controller** + simple home, as before.
      */
     fun markFlowComplete(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val finishAsHost = p.getString(KEY_MODE, MODE_CONTROLLER) == MODE_HOST
+        val e = p.edit()
             .putInt(KEY_STATE, -1)
-            .putString(KEY_MODE, MODE_CONTROLLER)
-            .putBoolean(KEY_USE_SIMPLE_HOME, true)
-            // Do not clear pairing mode here: host devices need it on for nearby pairing; default from AppPrefs is true.
-            .commit()
+        if (finishAsHost) {
+            e.putString(KEY_MODE, MODE_HOST)
+                .putBoolean(KEY_USE_SIMPLE_HOME, false)
+        } else {
+            e.putString(KEY_MODE, MODE_CONTROLLER)
+                .putBoolean(KEY_USE_SIMPLE_HOME, true)
+        }
+        e.commit()
+        AppPrefs.setOnboardingWantsHost(context, false)
     }
 
     fun resetFlow(context: Context) {

@@ -120,10 +120,11 @@ class OnboardingRoleFragment : Fragment(R.layout.fragment_onboarding_role) {
 
     private fun commitHostMode() {
         val ctx = requireContext()
+        // commit() so a fast tap on Finish (markFlowComplete) never reads stale "controller" mode.
         requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             .edit()
             .putString(keyMode, MainActivity.MODE_HOST)
-            .apply()
+            .commit()
         if (!AppPrefs.hasNonDefaultSecret(ctx)) {
             AppPrefs.setSharedSecret(ctx, RandomSecret.newReadable())
         }

@@ -7,4 +7,6 @@
     <dimen name="ih_button_min_h">58dp</dimen>
     <dimen name="ih_button_corner">22dp</dimen>
     <dimen name="ih_column_gutter">12dp</dimen>
+    <dimen name="ih_pair_block_radius">24dp</dimen>
+    <dimen name="ih_pair_code_min_height">72dp</dimen>
 </resources>

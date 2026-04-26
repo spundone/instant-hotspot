@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Widget.IH.Overline" parent="TextAppearance.Material3.LabelSmall">
         <item name="android:letterSpacing">0.2</item>
@@ -35,5 +36,13 @@
     <style name="ShapeAppearance.InstantHotspot.Button" parent="ShapeAppearance.Material3.LargeComponent">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">@dimen/ih_button_corner</item>
+    </style>
+
+    <!-- LocalSend-style short code / phrase emphasis -->
+    <style name="Widget.IH.PairCodeDisplay" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textAlignment">center</item>
+        <item name="android:lineHeight">28sp</item>
     </style>
 </resources>
