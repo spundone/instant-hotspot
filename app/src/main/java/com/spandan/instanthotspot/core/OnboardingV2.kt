@@ -9,6 +9,8 @@ object OnboardingV2 {
     private const val PREFS = "instant_hotspot_prefs"
     private const val KEY_STATE = "onboarding_v2_state"
     private const val KEY_MIGRATED = "onboarding_v2_migrated"
+    /** Must match [AppPrefs] key used for simple vs full home. */
+    private const val KEY_USE_SIMPLE_HOME = "use_simple_controller_home"
 
     const val PAGE_COUNT = 6
 
@@ -52,11 +54,12 @@ object OnboardingV2 {
      * remote (controller) or full console (host).
      */
     fun markFlowComplete(context: Context, isController: Boolean) {
+        // commit() so the next Activity in recreate() always reads finished + simple-home flags
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putInt(KEY_STATE, -1)
-            .apply()
-        AppPrefs.setUseSimpleHome(context, isController)
+            .putBoolean(KEY_USE_SIMPLE_HOME, isController)
+            .commit()
     }
 
     fun resetFlow(context: Context) {

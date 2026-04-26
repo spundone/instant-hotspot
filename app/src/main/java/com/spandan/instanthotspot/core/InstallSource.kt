@@ -37,7 +37,7 @@ object InstallSourceReader {
             PRIMARY_MARKER_PATH,
         ))
         val label = when {
-            magisk && inPrivPath -> "Install: Magisk systemless (priv-app) — marker or module path"
+            magisk && inPrivPath -> "Install: Magisk systemless (priv-app), marker or module path"
             inPrivPath && tetherOk -> "Install: system/priv-app (TETHER_PRIVILEGED granted)"
             inPrivPath -> "Install: system/priv-app (TETHER_PRIVILEGED not granted; allowlist/ROM?)"
             tetherOk && !inPrivPath -> "Install: user app, but TETHER_PRIVILEGED granted (unusual)"

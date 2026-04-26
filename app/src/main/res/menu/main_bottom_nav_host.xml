@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/main_nav_pair"
+        android:icon="@drawable/ic_nav_link_24"
+        android:title="@string/nav_label_pair"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/main_nav_hotspot"
+        android:icon="@drawable/ic_nav_wifi_24"
+        android:title="@string/nav_label_tether" />
+    <item
+        android:id="@+id/main_nav_logs"
+        android:icon="@drawable/ic_nav_notes_24"
+        android:title="@string/nav_label_host_log" />
+    <item
+        android:id="@+id/main_nav_tools"
+        android:icon="@drawable/ic_nav_update_24"
+        android:title="@string/nav_label_tools" />
+</menu>

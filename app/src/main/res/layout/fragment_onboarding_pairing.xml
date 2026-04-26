@@ -13,10 +13,10 @@
         android:orientation="vertical">
 
         <TextView
+            android:id="@+id/obPairingPageTitle"
             style="@style/TextAppearance.Material3.HeadlineSmall"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/ob_pairing_title" />
+            android:layout_height="wrap_content" />
 
         <TextView
             android:id="@+id/obPairingHint"
@@ -51,29 +51,63 @@
                     android:layout_height="wrap_content"
                     android:text="@string/host_pairing_title" />
 
-                <TextView
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/obhSecretLayout"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_magisk_notice"
-                    android:lineSpacingExtra="2dp"
-                    android:text="@string/magisk_banner_host"
-                    android:textColor="?attr/colorOnSurface" />
+                    android:hint="@string/pairing_secret_hint"
+                    app:boxStrokeColor="?attr/colorPrimary">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/obhSecret"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="top"
+                        android:inputType="textMultiLine|textNoSuggestions"
+                        android:minLines="2" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/obhSaveSecret"
+                        style="@style/Widget.InstantHotspot.Button.Expressive"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/ob_host_onboarding_save_secret" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/obhShareSecret"
+                        style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="@string/share_host_passphrase" />
+                </LinearLayout>
 
                 <TextView
-                    android:id="@+id/obhHostSecret"
                     style="@style/TextAppearance.Material3.BodySmall"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:textIsSelectable="true" />
+                    android:layout_marginTop="14dp"
+                    android:text="@string/ob_host_onboarding_pairing_details"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
                 <TextView
                     android:id="@+id/obhPending"
                     style="@style/TextAppearance.Material3.BodySmall"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="6dp"
                     android:background="@drawable/bg_status_pill" />
 
                 <TextView

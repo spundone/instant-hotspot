@@ -1,40 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/mainScroll"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
-    android:fillViewport="true"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
 
-    <LinearLayout
-        android:id="@+id/mainContentColumn"
+    <FrameLayout
+        android:id="@+id/mainRootContent"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:alpha="0"
+        android:clipChildren="false">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/mainViewPager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/mainBottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:alpha="0"
-        android:animateLayoutChanges="true"
-        android:clipToPadding="false"
-        android:orientation="vertical"
-        android:padding="@dimen/ih_screen_padding">
-
-        <include layout="@layout/include_ih_hero_mode" />
-
-        <include
-            layout="@layout/include_ih_host_section"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ih_section_gap" />
-
-        <include
-            layout="@layout/include_ih_controller_section"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ih_section_gap" />
-
-        <include
-            layout="@layout/include_ih_project_section"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ih_section_gap" />
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+        android:background="?attr/colorSurface"
+        app:itemIconSize="24dp"
+        app:itemRippleColor="?attr/colorPrimary"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/main_bottom_nav_controller" />
+</LinearLayout>

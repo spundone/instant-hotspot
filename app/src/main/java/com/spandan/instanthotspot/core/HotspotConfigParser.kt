@@ -22,7 +22,7 @@ object HotspotConfigParser {
     private fun isNullish(s: String) = s.isBlank() || s.lowercase() in nullish
 
     private fun fromSettingsGlobalLine(text: String): HotspotCredentials? {
-        // Single blob or "ssid=.. ; password=.. ; source=..." — scan tokens
+        // Single blob or "ssid=.. ; password=.. ; source=...": scan tokens
         var ssid: String? = null
         var pass: String? = null
         val segments = text.split(";", "\n", "|").map { it.trim() }.filter { it.isNotEmpty() }

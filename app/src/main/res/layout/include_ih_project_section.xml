@@ -38,6 +38,22 @@
             android:textColor="?attr/colorOnSurfaceVariant" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOpenSettings"
+            style="@style/Widget.InstantHotspot.Button.Expressive"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/main_menu_settings" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCheckForUpdates"
+            style="@style/Widget.InstantHotspot.Button.Expressive"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/btn_check_updates" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnOpenGithub"
             style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
             android:layout_width="match_parent"
@@ -52,14 +68,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/btn_open_releases_module" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCheckForUpdates"
-            style="@style/Widget.InstantHotspot.Button.Expressive"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/btn_check_updates" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTetheringSettings"

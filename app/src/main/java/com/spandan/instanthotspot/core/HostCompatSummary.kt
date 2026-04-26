@@ -18,9 +18,9 @@ object HostCompatSummary {
             append("\nTETHER_PRIVILEGED: ")
             append(
                 if (install.tetherPrivilegedGranted) {
-                    "granted (priv-app / module allowlist — use project Magisk zip on host)"
+                    "granted (priv-app / module allowlist: use project Magisk zip on host)"
                 } else {
-                    "not held — flash the Magisk module on the host; root alone is usually insufficient"
+                    "not held: flash the Magisk module on the host; root alone is usually insufficient"
                 },
             )
             append("\nModule/Magisk path hint: ")
@@ -37,7 +37,7 @@ object HostCompatSummary {
             return "BLE: no adapter"
         }
         if (!a.isEnabled) {
-            return "BLE: adapter present (Bluetooth off — turn on to use this app)"
+            return "BLE: adapter present (Bluetooth off; turn on to use this app)"
         }
         return "BLE: adapter on"
     }

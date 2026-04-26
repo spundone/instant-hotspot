@@ -13,8 +13,8 @@ android {
         applicationId = "com.spandan.instanthotspot"
         minSdk = 29
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.4.0"
+        versionCode = 7
+        versionName = "0.5.0"
         val gitSha = providers.exec {
             commandLine("git", "rev-parse", "--short=8", "HEAD")
         }.standardOutput.asText.get().trim().ifBlank { "dev" }
@@ -60,7 +60,7 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.fragment:fragment-ktx:1.8.2")
-    implementation("androidx.viewpager2:viewpager2:1.0.0")
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
 
     testImplementation("junit:junit:4.13.2")
 }
@@ -116,4 +116,28 @@ tasks.register<Zip>("packageMagiskModuleRelease") {
     destinationDirectory.set(magiskOutRelease)
     archiveFileName.set("InstantHotspot-magisk-release.zip")
     from(magiskStagingRelease)
+}
+
+/**
+ * Copy the **built** app into `magisk_module/.../InstantHotspot.apk` (gitignored) so you can zip
+ * `magisk_module/` yourself; the real app is the Gradle output, not a stub.
+ */
+tasks.register<Copy>("syncReleaseApkIntoMagiskTemplate") {
+    group = "distribution"
+    description = "Assemble release APK and copy to magisk_module/.../InstantHotspot/InstantHotspot.apk (gitignored)"
+    dependsOn("assembleRelease")
+    from(layout.buildDirectory.file("outputs/apk/release/app-release.apk")) {
+        rename { "InstantHotspot.apk" }
+    }
+    into(magiskModuleDir.dir("system/priv-app/InstantHotspot"))
+}
+
+tasks.register<Copy>("syncDebugApkIntoMagiskTemplate") {
+    group = "distribution"
+    description = "Assemble debug APK and copy to magisk_module/.../InstantHotspot/InstantHotspot.apk (gitignored)"
+    dependsOn("assembleDebug")
+    from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk")) {
+        rename { "InstantHotspot.apk" }
+    }
+    into(magiskModuleDir.dir("system/priv-app/InstantHotspot"))
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Instant Hotspot — BLE scan helper (Linux / macOS / Windows).
+Instant Hotspot: BLE scan helper (Linux / macOS / Windows).
 
 Full command signing is not yet implemented; use the Android controller app to pair
 and control the hotspot. This script discovers hosts advertising the app service.

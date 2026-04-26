@@ -16,8 +16,7 @@
             android:id="@+id/simpleToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:menu="@menu/main_simple"
-            app:title="@string/main_title" />
+            app:menu="@menu/main_simple" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -32,56 +31,9 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
-                style="@style/Widget.IH.Overline"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/m3_hero_kicker" />
-
-            <TextView
-                style="@style/TextAppearance.Material3.HeadlineSmall"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/main_title" />
-
-            <TextView
-                style="@style/TextAppearance.Material3.BodySmall"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:letterSpacing="0.01"
-                android:lineSpacingExtra="2dp"
-                android:text="@string/author_byline"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <TextView
-                style="@style/TextAppearance.Material3.BodySmall"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/simple_subtitle"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/switchSimpleMode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/ui_mode_simple" />
-
-            <TextView
-                android:id="@+id/simpleAppVersion"
-                style="@style/TextAppearance.Material3.LabelSmall"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/ih_section_gap"
                 app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
                 app:cardCornerRadius="@dimen/ih_card_corner"
                 app:cardElevation="0dp"

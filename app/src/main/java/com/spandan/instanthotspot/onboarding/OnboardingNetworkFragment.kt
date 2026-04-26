@@ -5,131 +5,96 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.view.View
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.spandan.instanthotspot.R
-import com.spandan.instanthotspot.controller.BlePairingClient
-import com.spandan.instanthotspot.core.AppPrefs
-import com.spandan.instanthotspot.core.HotspotConfigParser
-import com.spandan.instanthotspot.core.WifiStatusHelper
 import com.spandan.instanthotspot.MainActivity
-import java.util.concurrent.Executors
-import java.util.concurrent.ExecutorService
+import com.spandan.instanthotspot.R
+import com.spandan.instanthotspot.core.AppPrefs
+import com.spandan.instanthotspot.core.HostCompatSummary
+import com.spandan.instanthotspot.core.WifiStatusHelper
 
 class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network) {
     private val prefsName = "instant_hotspot_prefs"
     private val keyMode = "mode"
     private val handler = Handler(Looper.getMainLooper())
-    private var exec: ExecutorService? = null
-    private val tick = object : Runnable {
+    private val hostRefresh = object : Runnable {
         override fun run() {
-            if (isResumed && !isHost()) {
-                updateWifiLine()
+            if (isResumed && isHost()) {
+                refreshHostNetworkSnapshot()
             }
-            handler.postDelayed(this, 3000L)
+            if (isResumed && isHost()) {
+                handler.postDelayed(this, 3000L)
+            }
         }
     }
 
     private fun isHost() = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         .getString(keyMode, MainActivity.MODE_CONTROLLER) == MainActivity.MODE_HOST
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        exec = Executors.newSingleThreadExecutor()
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        val title = view.findViewById<TextView>(R.id.obNetPageTitle)
+        val hostCard = view.findViewById<MaterialCardView>(R.id.obNetHostCard)
+        val controllerNote = view.findViewById<TextView>(R.id.obControllerNetworkNote)
         if (isHost()) {
-            view.findViewById<TextView>(R.id.obNetHostInfo).visibility = View.VISIBLE
-            view.findViewById<MaterialCardView>(R.id.obNetClientCard).visibility = View.GONE
+            title.setText(R.string.ob_network_page_title_host)
+            hostCard.visibility = View.VISIBLE
+            controllerNote.visibility = View.GONE
+            view.findViewById<MaterialButton>(R.id.obHostShareNetwork).setOnClickListener { shareHostSnapshot() }
+            refreshHostNetworkSnapshot()
         } else {
-            view.findViewById<TextView>(R.id.obNetHostInfo).visibility = View.GONE
-            val card = view.findViewById<MaterialCardView>(R.id.obNetClientCard)
-            card.visibility = View.VISIBLE
-            val sync = view.findViewById<MaterialButton>(R.id.obSync)
-            sync.setOnClickListener { doSync(view) }
-            updateConfig(view)
-            updateWifiLine()
+            title.setText(R.string.ob_network_page_title_controller)
+            hostCard.visibility = View.GONE
+            controllerNote.visibility = View.VISIBLE
+            controllerNote.setText(R.string.ob_network_controller_note)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        if (!isHost()) {
-            handler.removeCallbacks(tick)
-            handler.post(tick)
+        if (isHost()) {
+            handler.removeCallbacks(hostRefresh)
+            handler.post(hostRefresh)
         }
     }
 
     override fun onPause() {
-        handler.removeCallbacks(tick)
+        handler.removeCallbacks(hostRefresh)
         super.onPause()
     }
 
-    override fun onDestroy() {
-        exec?.shutdown()
-        super.onDestroy()
-    }
-
-    private fun updateWifiLine() {
-        if (!isHost()) {
-            val v = view ?: return
-            v.findViewById<TextView>(R.id.obWifiLine).text = WifiStatusHelper.line(requireContext())
-        }
-    }
-
-    private fun doSync(root: View) {
-        exec?.execute {
-            val c = BlePairingClient.fetchHotspotConfig(requireContext())
-            requireActivity().runOnUiThread {
-                if (c == null) {
-                    Toast.makeText(requireContext(), R.string.client_sync_failed, Toast.LENGTH_SHORT).show()
-                } else {
-                    AppPrefs.setLastSyncedHotspotConfig(requireContext(), c)
-                    val creds = HotspotConfigParser.parseSsidPassword(c)
-                    if (creds != null) {
-                        Toast.makeText(
-                            requireContext(),
-                            getString(R.string.client_sync_connect_hint, creds.ssid, creds.password),
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        runCatching {
-                            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
-                        }
-                    } else {
-                        Toast.makeText(requireContext(), R.string.client_sync_missing_credentials, Toast.LENGTH_LONG).show()
-                    }
-                }
-                updateConfig(root)
-            }
-        }
-    }
-
-    private fun updateConfig(v: View) {
-        val raw = AppPrefs.lastSyncedHotspotConfig(requireContext())
-        v.findViewById<TextView>(R.id.obSyncedConfig).text = if (raw.isNullOrBlank()) {
-            getString(R.string.client_hotspot_config_empty)
+    private fun refreshHostNetworkSnapshot() {
+        val v = view ?: return
+        val out = v.findViewById<TextView>(R.id.obHostNetworkDetail) ?: return
+        val ctx = requireContext()
+        val apProbe = AppPrefs.lastApStateLine(ctx)
+        val apLine = if (apProbe.isNullOrBlank()) {
+            getString(R.string.ob_network_host_ap_none)
         } else {
-            formatConfig(raw)
+            getString(R.string.ob_network_ap_probe, apProbe)
+        }
+        out.text = buildString {
+            appendLine(WifiStatusHelper.line(ctx))
+            appendLine(apLine)
+            appendLine()
+            append(HostCompatSummary.build(ctx))
         }
     }
 
-    private fun formatConfig(raw: String): String {
-        val t = raw.trim()
-        if (t.isEmpty()) return getString(R.string.client_hotspot_config_empty)
-        return t
-            .replace(" ; ", "\n")
-            .replace(" | ", "\n")
-            .lines()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .joinToString("\n")
-            .take(8_000)
+    private fun shareHostSnapshot() {
+        refreshHostNetworkSnapshot()
+        val text = view?.findViewById<TextView>(R.id.obHostNetworkDetail)?.text?.toString().orEmpty()
+        if (text.isBlank()) return
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                },
+                getString(R.string.ob_network_page_title_host),
+            ),
+        )
     }
-
 }

@@ -10,6 +10,8 @@ tethering-impl/build/
 tethering-stub/build/
 .cursor/
 artifacts/
+# Built app for Magisk template — generate with packageMagiskModule* or sync* tasks
+/magisk_module/system/priv-app/InstantHotspot/InstantHotspot.apk
 # Python
 __pycache__/
 *.pyc

@@ -65,10 +65,10 @@ You may choose either license for your use/distribution:
 
 ### How to enable it
 
-1. Flash the host module from **`magisk_module/`**.
-2. Reboot host device.
-3. Open Instant Hotspot on host and verify compatibility status.
-4. Pair controller again if needed and test ON/OFF + sync.
+1. **Build a flashable zip** that contains the current app (the repo’s `magisk_module/` path alone does not include an APK; it is template + allowlist). From the project root, run **`./gradlew :app:packageMagiskModuleRelease`**, then flash **`build/magisk-release-out/InstantHotspot-magisk-release.zip`** in Magisk (or use the debug variant: `packageMagiskModule` → `app/build/dist/InstantHotspot-magisk.zip`). To drop a built APK into the tree and zip the folder yourself, use **`./gradlew :app:syncReleaseApkIntoMagiskTemplate`** and see `magisk_module/.../InstantHotspot/README-APK.txt`.
+2. Reboot the host device.
+3. Open Instant Hotspot on the host and verify compatibility status.
+4. Pair the controller again if needed and test ON/OFF + sync.
 
 Alternative: install as a true ROM-integrated `priv-app` with proper allowlist.
 
@@ -92,6 +92,14 @@ This repo includes the **Gradle wrapper** (`gradlew`, `gradlew.bat`, `gradle/wra
 ```
 
 The APK is written under `app/build/outputs/apk/debug/`. Install with `adb install -r` if needed.
+
+5. **Magisk / KernelSU host module** (priv-app with allowlist; includes the **built** app in the zip, not a stub from git):
+
+```bash
+./gradlew :app:packageMagiskModuleRelease
+```
+
+The flashable zip is `build/magisk-release-out/InstantHotspot-magisk-release.zip` (or `:app:packageMagiskModule` for debug under `app/build/dist/`). To copy a built APK into `magisk_module/.../InstantHotspot/` for a manual zip, use `:app:syncReleaseApkIntoMagiskTemplate` (see `magisk_module/.../README-APK.txt`).
 
 ### If Gradle fails with only a version number (e.g. `25.0.2`)
 

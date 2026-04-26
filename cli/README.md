@@ -31,8 +31,8 @@ Security note: do not store the shared secret in shell history. Prefer environme
 
 ## Status
 
-- **Scan / discover** — working with `bleak`.
-- **Sign / send commands** — implement `CommandCodec` + HMAC in Python to match the app (same wire format
+- **Scan / discover:** working with `bleak`.
+- **Sign / send commands:** implement `CommandCodec` + HMAC in Python to match the app (same wire format
   as `com.spandan.instanthotspot.core.CommandCodec` and `CommandSecurity`).
 
 Pull requests to complete signing and to mirror the v2 pairing messages are welcome.

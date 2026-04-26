@@ -55,16 +55,21 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val pageTitle = view.findViewById<TextView>(R.id.obPairingPageTitle)
+        val hint = view.findViewById<TextView>(R.id.obPairingHint)
         val hostCard = view.findViewById<View>(R.id.obHostPairCard)
         val ctrlCard = view.findViewById<View>(R.id.obControllerPairCard)
-        val hint = view.findViewById<TextView>(R.id.obPairingHint)
         if (isHost()) {
+            pageTitle.setText(R.string.ob_pairing_page_title_host)
+            hint.setText(R.string.ob_pairing_hint_host)
             hostCard.visibility = View.VISIBLE
             ctrlCard.visibility = View.GONE
-            hint.setText(R.string.ob_pairing_hint_host)
+            val hostSecret = view.findViewById<TextInputEditText>(R.id.obhSecret)
             val toggle = view.findViewById<MaterialButton>(R.id.obhBtnTogglePair)
             val readv = view.findViewById<MaterialButton>(R.id.obhBtnReadvertise)
             val approve = view.findViewById<MaterialButton>(R.id.obhBtnApprove)
+            view.findViewById<MaterialButton>(R.id.obhSaveSecret).setOnClickListener { saveHostSecret(hostSecret) }
+            view.findViewById<MaterialButton>(R.id.obhShareSecret).setOnClickListener { shareHostPassphrase() }
             toggle.setOnClickListener { toggleHostPairing() }
             readv.setOnClickListener {
                 val ctx = requireContext()
@@ -77,9 +82,10 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
             }
             approve.setOnClickListener { approvePending() }
         } else {
+            pageTitle.setText(R.string.ob_pairing_page_title_controller)
+            hint.setText(R.string.ob_pairing_hint_controller)
             hostCard.visibility = View.GONE
             ctrlCard.visibility = View.VISIBLE
-            hint.setText(R.string.ob_pairing_hint_controller)
             val save = view.findViewById<MaterialButton>(R.id.obcSaveSecret)
             val start = view.findViewById<MaterialButton>(R.id.obcStart)
             val confirm = view.findViewById<MaterialButton>(R.id.obcConfirm)
@@ -121,12 +127,17 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
 
     private fun refreshHost() {
         val v = requireView()
-        v.findViewById<TextView>(R.id.obhHostSecret).text =
-            if (AppPrefs.hasNonDefaultSecret(requireContext())) {
-                AppPrefs.sharedSecret(requireContext())
-            } else {
-                getString(R.string.pairing_not_set)
-            }
+        val secretField = v.findViewById<TextInputEditText>(R.id.obhSecret)
+        val ctx = requireContext()
+        if (secretField != null && !secretField.isFocused) {
+            secretField.setText(
+                if (AppPrefs.hasNonDefaultSecret(ctx)) {
+                    AppPrefs.sharedSecret(ctx)
+                } else {
+                    ""
+                },
+            )
+        }
         val code = AppPrefs.pendingPairCode(requireContext())
         v.findViewById<TextView>(R.id.obhPending).text = if (code.isNullOrBlank()) {
             getString(R.string.pending_code_none)
@@ -166,9 +177,39 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         Toast.makeText(requireContext(), R.string.host_code_approved, Toast.LENGTH_SHORT).show()
     }
 
+    private fun saveHostSecret(sec: TextInputEditText) {
+        val t = sec.text?.toString()?.trim().orEmpty()
+        if (t.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        AppPrefs.setSharedSecret(requireContext(), t)
+        DebugLog.append(requireContext(), "OB", "Host secret saved in onboarding")
+        Toast.makeText(requireContext(), R.string.secret_saved, Toast.LENGTH_SHORT).show()
+        requireContext().startService(Intent(requireContext(), HostBleService::class.java))
+        refreshHost()
+    }
+
+    private fun shareHostPassphrase() {
+        val t = AppPrefs.sharedSecret(requireContext())
+        if (t.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, t)
+                },
+                getString(R.string.host_pairing_title),
+            ),
+        )
+    }
+
     private fun saveManual(sec: TextInputEditText) {
         val t = sec.text?.toString()?.trim().orEmpty()
-        if (t.length < 12) {
+        if (t.isEmpty()) {
             Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
             return
         }

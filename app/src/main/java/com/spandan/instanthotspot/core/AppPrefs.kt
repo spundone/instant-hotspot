@@ -26,6 +26,8 @@ object AppPrefs {
     private const val KEY_LAST_STATE_FETCH_MS = "last_host_state_fetch_ms"
     private const val KEY_HOST_BOND_ALLOWLIST = "host_bond_allowlist_enabled"
     private const val KEY_HOST_PAIRED_SINCE_MS = "host_paired_since_ms"
+    private const val KEY_VERBOSE_DEBUG_UI = "verbose_debug_ui"
+    private const val KEY_OB_WANTS_HOST = "onboarding_wants_host"
 
     // Replace with pairing-generated secret in the next milestone.
     private const val DEFAULT_DEV_SECRET = "change-me-before-production"
@@ -214,6 +216,36 @@ object AppPrefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_USE_SIMPLE_HOME, useSimple)
+            .apply()
+    }
+
+    /** When true, full console shows verbose panels, long install summary, and extra debug. */
+    fun isVerboseDebugEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_VERBOSE_DEBUG_UI, false)
+    }
+
+    fun setVerboseDebugEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_VERBOSE_DEBUG_UI, enabled)
+            .apply()
+    }
+
+    /**
+     * Onboarding: user picked Host in the walkthrough, but the device is not yet allowed to
+     * commit to host mode (Magisk + root checks, or "Verify" not run). While true, the role step
+     * should block "Next" until [HostOnboarding.isHostSetupSatisfied] and verify succeeds.
+     */
+    fun isOnboardingWantsHost(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_OB_WANTS_HOST, false)
+    }
+
+    fun setOnboardingWantsHost(context: Context, wants: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_OB_WANTS_HOST, wants)
             .apply()
     }
 

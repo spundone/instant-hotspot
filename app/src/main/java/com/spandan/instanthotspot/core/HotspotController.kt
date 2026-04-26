@@ -35,7 +35,7 @@ object HotspotController {
     @Volatile private var lastExecutionReport: String = "No hotspot command executed yet."
 
     /**
-     * 1) If the app has [TETHER_PRIVILEGED], use [TetheringManager] (no root shell) — e.g. priv-app
+     * 1) If the app has [TETHER_PRIVILEGED], use [TetheringManager] (no root shell), e.g. priv-app
      *    install, or optional systemless module that grants the permission.
      * 2) Otherwise, typical **sideload + root** flow: run `cmd` / `ndc` as root (default for this app)
      *    without any Magisk module.
