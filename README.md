@@ -2,11 +2,24 @@
 
 Android app scaffold for controlling hotspot on a rooted primary phone from a secondary Android device via offline proximity transport (BLE planned).
 
+## License
+
+This project is dual-licensed under **MIT** and **GPL-3.0-or-later**.
+You may choose either license for your use/distribution:
+
+- `LICENSE-MIT`
+- `LICENSE-GPL-3.0`
+
 ## Current status
 
 - **v0.2.0+**: Multi-step in-app set-up (welcome → role → pairing → remote controls → Wi‑Fi / sync of hotspot
   settings → tiles & widgets), then a **minimal home** for the controller, or the full “console” for
   the host. Existing installs skip the set-up; use **Run set-up again** in the app menu to replay it.
+- **Version label includes commit id** in-app (for example `Version 0.2.0 (3) • d9e1904d`) so builds are easy to trace.
+- **Simple / verbose toggle** is available in-app (including host) to show/hide verbose logs without changing mode.
+- **Expressive MD3 pass**: larger rounded action buttons, dynamic system accent support (Android 12+), darker layered surfaces.
+- **Sync hotspot settings** now tries to parse host credentials (SSID/password), shows them, and opens Wi-Fi settings to connect.
+- **Quick Settings tile** sends the same ON/OFF command family as app buttons and supports tile-preferences long-press target.
 - Single Android app with runtime mode selection:
   - Host mode (primary/rooted device)
   - Controller mode (tablet/secondary device)
@@ -39,7 +52,7 @@ Android app scaffold for controlling hotspot on a rooted primary phone from a se
 Sideloaded or debug builds **must** be able to hold **TETHER_PRIVILEGED** for the in-process
 [tethering API](https://developer.android.com/reference/android/net/TetheringManager) to work
 reliably (that’s what the app and the Quick Settings tile use). The practical way to get that
-on a custom ROM / root setup is the **module in `module/`** (see `module/README.md`): it installs
+on a custom ROM / root setup is the **module in `magisk_module/`**: it installs
 this package under `system/priv-app` with the right allowlist. **Without it, remote ON/OFF and the
 tile may fail** even if basic `cmd` or `ndc` shell invocations work sometimes.
 
@@ -73,7 +86,15 @@ That string is almost always the **JVM** Gradle is using. **Gradle 8.7** cannot 
 
 ## Next implementation steps
 
-1. Add explicit ACK/state characteristic so tile/widget reflects actual hotspot status.
-2. Add robust hotspot toggle semantics (query + true on/off branching) across ROM variants.
+1. Add explicit ACK/state characteristic so tile/widget can show real hotspot state instead of reachability heuristics.
+2. Harden host config parsing across ROMs (normalize SSID/password extraction from `cmd wifi` and settings outputs).
 3. Persist pending-pair state across host service restarts (currently in-memory map).
 4. Add optional bonded-device allowlist on host for an extra security layer.
+
+## Contributing
+
+Pull requests, bug reports, and feature requests are welcome.
+
+- Read `CONTRIBUTING.md` for contribution flow.
+- Use the issue templates in `.github/ISSUE_TEMPLATE/`.
+- Open PRs against `main`.
