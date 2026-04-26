@@ -245,10 +245,11 @@ object AppPrefs {
     }
 
     fun setOnboardingWantsHost(context: Context, wants: Boolean) {
+        // commit() so the next screen (e.g. pairing ViewPager) reads the same as role step.
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_OB_WANTS_HOST, wants)
-            .apply()
+            .commit()
     }
 
     /** Tile fallback toggle state so QS uses ON/OFF commands (same as app buttons). */

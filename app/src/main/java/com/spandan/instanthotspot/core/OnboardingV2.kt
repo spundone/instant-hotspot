@@ -62,8 +62,15 @@ object OnboardingV2 {
         }
     }
 
+    /**
+     * Saved page index while the walkthrough is in progress, or **-1** when finished.
+     * **Default 0 (not -1)**: a missing key must mean "in progress" so [isHostModeForOnboarding]
+     * and [isFlowComplete] are not wrong when prefs are read before migration or off the main
+     * path. Treating a missing value like **-1** (done) would skip [AppPrefs.isOnboardingWantsHost]
+     * and show controller pairing on the host role path.
+     */
     fun currentPageOrDone(context: Context): Int {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_STATE, -1)
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_STATE, 0)
     }
 
     fun isFlowComplete(context: Context): Boolean = currentPageOrDone(context) < 0

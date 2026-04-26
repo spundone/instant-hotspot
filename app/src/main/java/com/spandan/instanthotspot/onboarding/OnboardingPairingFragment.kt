@@ -57,13 +57,29 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         super.onDestroy()
     }
 
+    private var lastAppliedHostMode: Boolean? = null
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        applyHostVsControllerPairingUi(view, force = true)
+    }
+
+    private fun isHost(): Boolean = OnboardingV2.isHostModeForOnboarding(requireContext())
+
+    /**
+     * Host vs controller UI is decided from prefs. If the fragment is created offscreen before the
+     * role step saves [AppPrefs] / mode, re-apply when [onResume] runs.
+     */
+    private fun applyHostVsControllerPairingUi(view: View, force: Boolean) {
+        val hostNow = isHost()
+        if (!force && lastAppliedHostMode == hostNow) return
+        lastAppliedHostMode = hostNow
+
         val pageTitle = view.findViewById<TextView>(R.id.obPairingPageTitle)
         val hint = view.findViewById<TextView>(R.id.obPairingHint)
         val hostCard = view.findViewById<View>(R.id.obHostPairCard)
         val ctrlCard = view.findViewById<View>(R.id.obControllerPairCard)
-        if (isHost()) {
+        if (hostNow) {
             pageTitle.setText(R.string.ob_pairing_page_title_host)
             hint.setText(R.string.ob_pairing_hint_host)
             hostCard.visibility = View.VISIBLE
@@ -98,10 +114,9 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         updatePairedBanner()
     }
 
-    private fun isHost(): Boolean = OnboardingV2.isHostModeForOnboarding(requireContext())
-
     override fun onResume() {
         super.onResume()
+        view?.let { applyHostVsControllerPairingUi(it, force = false) }
         if (isHost()) {
             if (!AppPrefs.hasNonDefaultSecret(requireContext())) {
                 AppPrefs.setSharedSecret(requireContext(), RandomSecret.newReadable())
