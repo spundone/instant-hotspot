@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.bundling.Zip
+import java.util.zip.ZipFile
 
 plugins {
     id("com.android.application")
@@ -65,6 +66,38 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
+/** The git `magisk_module/` tree is a template: no APK. These checks catch empty hand-zips. */
+fun verifyStagedApk(stagedModuleRoot: java.io.File) {
+    val f = stagedModuleRoot.resolve("system/priv-app/InstantHotspot/InstantHotspot.apk")
+    if (!f.isFile) {
+        throw org.gradle.api.GradleException(
+            "Magisk stage has no app at $f. " +
+                "The repo `magisk_module/` directory does not include the APK. " +
+                "Run :app:packageRelease (or :app:packageMagiskModuleRelease), not a plain zip of `magisk_module/`. " +
+                "Or run :app:syncReleaseApkIntoMagiskTemplate, then zip that folder."
+        )
+    }
+    if (f.length() < 50_000L) {
+        throw org.gradle.api.GradleException("Staged InstantHotspot.apk too small or corrupt: $f")
+    }
+}
+
+fun verifyMagiskZipContainsApk(archive: java.io.File) {
+    if (!archive.isFile) {
+        throw org.gradle.api.GradleException("Expected Magisk zip at ${archive.absolutePath}")
+    }
+    ZipFile(archive).use { zf ->
+        val e = zf.getEntry("system/priv-app/InstantHotspot/InstantHotspot.apk")
+        requireNotNull(e) {
+            "Magisk zip is missing system/priv-app/InstantHotspot/InstantHotspot.apk. " +
+                "The git `magisk_module/` folder is template-only. Build with :app:packageMagiskModuleRelease."
+        }
+        require(e.size > 50_000) {
+            "APK in zip is too small (${e.size} bytes), build may be corrupt: ${archive.name}"
+        }
+    }
+}
+
 val magiskModuleDir = rootProject.layout.projectDirectory.dir("magisk_module")
 val magiskStagingDebug = layout.buildDirectory.dir("magisk-staging-debug")
 val magiskStagingRelease = layout.buildDirectory.dir("magisk-staging-release")
@@ -73,15 +106,19 @@ val magiskStagingRelease = layout.buildDirectory.dir("magisk-staging-release")
 tasks.register<Copy>("stageMagiskDebug") {
     group = "distribution"
     description = "Assemble a debug flashable module tree under app/build/magisk-staging-debug"
-    dependsOn("assembleDebug")
+    // packageDebug materializes the APK; assembleDebug alone is not a formal output dependency for the file
+    dependsOn("packageDebug")
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.FAIL
     from(magiskModuleDir) {
         exclude("system/priv-app/InstantHotspot/InstantHotspot.apk", "**/InstantHotspot.apk")
     }
-    from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk")) {
+    from(layout.buildDirectory.dir("outputs/apk/debug")) {
+        include("*.apk")
         into("system/priv-app/InstantHotspot")
         rename { "InstantHotspot.apk" }
     }
     into(magiskStagingDebug)
+    doLast { verifyStagedApk(magiskStagingDebug.get().asFile) }
 }
 
 tasks.register<Zip>("packageMagiskModule") {
@@ -91,6 +128,7 @@ tasks.register<Zip>("packageMagiskModule") {
     destinationDirectory.set(layout.buildDirectory.dir("dist"))
     archiveFileName.set("InstantHotspot-magisk.zip")
     from(magiskStagingDebug)
+    doLast { verifyMagiskZipContainsApk(archiveFile.get().asFile) }
 }
 
 val magiskOutRelease = rootProject.layout.buildDirectory.dir("magisk-release-out")
@@ -98,15 +136,18 @@ val magiskOutRelease = rootProject.layout.buildDirectory.dir("magisk-release-out
 tasks.register<Copy>("stageMagiskRelease") {
     group = "distribution"
     description = "Assemble a release flashable module tree under app/build/magisk-staging-release"
-    dependsOn("assembleRelease")
+    dependsOn("packageRelease")
+    duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.FAIL
     from(magiskModuleDir) {
         exclude("system/priv-app/InstantHotspot/InstantHotspot.apk", "**/InstantHotspot.apk")
     }
-    from(layout.buildDirectory.file("outputs/apk/release/app-release.apk")) {
+    from(layout.buildDirectory.dir("outputs/apk/release")) {
+        include("*.apk")
         into("system/priv-app/InstantHotspot")
         rename { "InstantHotspot.apk" }
     }
     into(magiskStagingRelease)
+    doLast { verifyStagedApk(magiskStagingRelease.get().asFile) }
 }
 
 tasks.register<Zip>("packageMagiskModuleRelease") {
@@ -116,6 +157,7 @@ tasks.register<Zip>("packageMagiskModuleRelease") {
     destinationDirectory.set(magiskOutRelease)
     archiveFileName.set("InstantHotspot-magisk-release.zip")
     from(magiskStagingRelease)
+    doLast { verifyMagiskZipContainsApk(archiveFile.get().asFile) }
 }
 
 /**
@@ -125,19 +167,23 @@ tasks.register<Zip>("packageMagiskModuleRelease") {
 tasks.register<Copy>("syncReleaseApkIntoMagiskTemplate") {
     group = "distribution"
     description = "Assemble release APK and copy to magisk_module/.../InstantHotspot/InstantHotspot.apk (gitignored)"
-    dependsOn("assembleRelease")
-    from(layout.buildDirectory.file("outputs/apk/release/app-release.apk")) {
+    dependsOn("packageRelease")
+    from(layout.buildDirectory.dir("outputs/apk/release")) {
+        include("*.apk")
         rename { "InstantHotspot.apk" }
     }
     into(magiskModuleDir.dir("system/priv-app/InstantHotspot"))
+    doLast { verifyStagedApk(magiskModuleDir.asFile) }
 }
 
 tasks.register<Copy>("syncDebugApkIntoMagiskTemplate") {
     group = "distribution"
     description = "Assemble debug APK and copy to magisk_module/.../InstantHotspot/InstantHotspot.apk (gitignored)"
-    dependsOn("assembleDebug")
-    from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk")) {
+    dependsOn("packageDebug")
+    from(layout.buildDirectory.dir("outputs/apk/debug")) {
+        include("*.apk")
         rename { "InstantHotspot.apk" }
     }
     into(magiskModuleDir.dir("system/priv-app/InstantHotspot"))
+    doLast { verifyStagedApk(magiskModuleDir.asFile) }
 }
