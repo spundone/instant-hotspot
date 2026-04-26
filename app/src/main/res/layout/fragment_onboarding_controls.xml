@@ -59,14 +59,14 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obBtnHotOn"
-                    style="@style/Widget.Material3.Button"
+                    style="@style/Widget.InstantHotspot.Button.Expressive"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/client_hotspot_on" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obBtnHotOff"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"

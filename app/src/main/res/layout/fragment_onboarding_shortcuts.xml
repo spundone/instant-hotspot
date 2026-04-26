@@ -28,7 +28,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/obBtnAddTile"
-            style="@style/Widget.Material3.Button"
+            style="@style/Widget.InstantHotspot.Button.Expressive"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -36,7 +36,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/obBtnAddWidget"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"

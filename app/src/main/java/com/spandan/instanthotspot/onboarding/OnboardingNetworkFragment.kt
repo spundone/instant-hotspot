@@ -1,9 +1,11 @@
 package com.spandan.instanthotspot.onboarding
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -88,7 +90,19 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
                     Toast.makeText(requireContext(), R.string.client_sync_failed, Toast.LENGTH_SHORT).show()
                 } else {
                     AppPrefs.setLastSyncedHotspotConfig(requireContext(), c)
-                    Toast.makeText(requireContext(), R.string.client_sync_success, Toast.LENGTH_SHORT).show()
+                    val creds = parseSsidPassword(c)
+                    if (creds != null) {
+                        Toast.makeText(
+                            requireContext(),
+                            getString(R.string.client_sync_connect_hint, creds.ssid, creds.password),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        runCatching {
+                            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+                        }
+                    } else {
+                        Toast.makeText(requireContext(), R.string.client_sync_missing_credentials, Toast.LENGTH_LONG).show()
+                    }
                 }
                 updateConfig(root)
             }
@@ -115,5 +129,21 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
             .filter { it.isNotEmpty() }
             .joinToString("\n")
             .take(8_000)
+    }
+
+    private data class HotspotCredentials(val ssid: String, val password: String)
+
+    private fun parseSsidPassword(raw: String): HotspotCredentials? {
+        val ssidRegexes = listOf(
+            Regex("""(?i)\bssid\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
+            Regex("""(?i)\bnetworkName\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
+        )
+        val passRegexes = listOf(
+            Regex("""(?i)\b(passphrase|password|psk|preSharedKey)\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
+        )
+        val ssid = ssidRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(1)?.trim() }
+        val pass = passRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(2)?.trim() }
+        if (ssid.isNullOrBlank() || pass.isNullOrBlank()) return null
+        return HotspotCredentials(ssid, pass)
     }
 }

@@ -54,7 +54,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obSync"
-                    style="@style/Widget.Material3.Button.TonalButton"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"

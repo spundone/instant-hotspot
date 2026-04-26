@@ -27,16 +27,30 @@ class HotspotTileService : TileService() {
     }
 
     private fun dispatchToggleFromTile() {
+        val command = if (AppPrefs.nextTileCommandIsOn(this)) {
+            HotspotCommand.HOTSPOT_ON
+        } else {
+            HotspotCommand.HOTSPOT_OFF
+        }
         ControllerCommandSender.sendAsync(
             this,
-            HotspotCommand.HOTSPOT_TOGGLE,
+            command,
         ) { status ->
             if (status == CommandSendStatus.SUCCESS) {
                 AppPrefs.markHostReachableNow(this@HotspotTileService)
+                // Flip only after a successful write so retries keep intent stable.
+                AppPrefs.setNextTileCommandIsOn(
+                    this@HotspotTileService,
+                    command != HotspotCommand.HOTSPOT_ON,
+                )
             }
             mainHandler.post {
                 val msg = when (status) {
-                    CommandSendStatus.SUCCESS -> getString(R.string.tile_toast_toggled)
+                    CommandSendStatus.SUCCESS -> when (command) {
+                        HotspotCommand.HOTSPOT_ON -> getString(R.string.toast_client_hotspot_on_sent)
+                        HotspotCommand.HOTSPOT_OFF -> getString(R.string.toast_client_hotspot_off_sent)
+                        else -> getString(R.string.tile_toast_toggled)
+                    }
                     CommandSendStatus.NOT_PAIRED -> getString(R.string.tile_toast_not_paired)
                     CommandSendStatus.BLUETOOTH_OFF -> getString(R.string.tile_toast_bt_off)
                     CommandSendStatus.HOST_NOT_FOUND -> getString(R.string.tile_toast_host_missing)

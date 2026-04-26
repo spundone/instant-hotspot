@@ -15,6 +15,10 @@ android {
         targetSdk = 35
         versionCode = 3
         versionName = "0.2.0"
+        val gitSha = providers.exec {
+            commandLine("git", "rev-parse", "--short=8", "HEAD")
+        }.standardOutput.asText.get().trim().ifBlank { "dev" }
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,6 +43,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 }
 

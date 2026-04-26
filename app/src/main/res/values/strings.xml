@@ -2,8 +2,8 @@
     <string name="app_name">Instant Hotspot</string>
     <string name="tile_label">Hotspot</string>
     <string name="main_title">Instant Hotspot</string>
-    <string name="author_byline">Spandan</string>
-    <string name="magisk_banner_host">Host (primary): install the project Magisk module so the app is a priv-app with TETHER_PRIVILEGED. In practice, reliable remote toggle on many ROMs (including stock/OEM) requires it — root alone is often not enough for stable TetheringManager or shell calls.</string>
+    <string name="author_byline">by Spandan</string>
+    <string name="magisk_banner_host">Host (primary)\nInstall the project Magisk module so this app runs as a priv-app with TETHER_PRIVILEGED.\nReliable remote hotspot control on many ROMs (including stock/OEM) usually needs this. Root alone is often not enough for stable TetheringManager and shell behavior.</string>
     <string name="host_section_hint">Keep this device nearby and enable pairing mode only when needed. Use the Magisk module on the host (see above).</string>
     <string name="host_install_compat_title">Install and compatibility (host)</string>
     <string name="controller_section_hint">Use these controls from tablet/secondary phone to wake hotspot remotely.</string>
@@ -116,4 +116,8 @@
     <string name="main_menu_rerun_onboarding">Run set-up again</string>
     <string name="simple_subtitle">Remote from this device (controller)</string>
     <string name="simple_status_prefix">Status:</string>
+    <string name="ui_mode_simple">Simple mode</string>
+    <string name="ui_mode_verbose">Verbose mode</string>
+    <string name="client_sync_connect_hint">Synced. SSID: %1$s  Password: %2$s. Opening Wi-Fi settings.</string>
+    <string name="client_sync_missing_credentials">Synced, but SSID/password were not found in host output.</string>
 </resources>

@@ -1,0 +1,27 @@
+<resources>
+    <style name="Widget.InstantHotspot.Button.Expressive" parent="Widget.Material3.Button">
+        <item name="android:minHeight">60dp</item>
+        <item name="android:paddingLeft">20dp</item>
+        <item name="android:paddingRight">20dp</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.InstantHotspot.Button</item>
+    </style>
+
+    <style name="Widget.InstantHotspot.Button.Expressive.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">60dp</item>
+        <item name="android:paddingLeft">20dp</item>
+        <item name="android:paddingRight">20dp</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.InstantHotspot.Button</item>
+    </style>
+
+    <style name="Widget.InstantHotspot.Button.Expressive.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:minHeight">60dp</item>
+        <item name="android:paddingLeft">20dp</item>
+        <item name="android:paddingRight">20dp</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.InstantHotspot.Button</item>
+    </style>
+
+    <style name="ShapeAppearance.InstantHotspot.Button" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">22dp</item>
+    </style>
+</resources>

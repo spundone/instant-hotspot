@@ -85,6 +85,15 @@ object HotspotController {
 
     fun hotspotConfigSummary(): String {
         if (!hasRootPermission()) return "Root unavailable for config"
+        val settingsSsid = runAsRootForOutput("/system/bin/settings get global soft_ap_ssid")
+            .lineSequence().firstOrNull()?.trim().orEmpty()
+        val settingsPass = runAsRootForOutput("/system/bin/settings get global soft_ap_passphrase")
+            .lineSequence().firstOrNull()?.trim().orEmpty()
+        if (settingsSsid.isNotBlank() && settingsSsid.lowercase() != "null" &&
+            settingsPass.isNotBlank() && settingsPass.lowercase() != "null"
+        ) {
+            return "ssid=$settingsSsid ; password=$settingsPass ; source=settings-global"
+        }
         for (command in configCommands) {
             val output = runAsRootForOutput(command)
             if (output.isNotBlank()) {

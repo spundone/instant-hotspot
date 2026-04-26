@@ -17,6 +17,7 @@ object AppPrefs {
     private const val KEY_LAST_PAIRED_CONTROLLER = "last_paired_controller"
     private const val KEY_LAST_AP_STATE = "last_ap_state_line"
     private const val KEY_USE_SIMPLE_HOME = "use_simple_controller_home"
+    private const val KEY_TILE_NEXT_FORCE_ON = "tile_next_force_on"
 
     // Replace with pairing-generated secret in the next milestone.
     private const val DEFAULT_DEV_SECRET = "change-me-before-production"
@@ -201,6 +202,19 @@ object AppPrefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_USE_SIMPLE_HOME, useSimple)
+            .apply()
+    }
+
+    /** Tile fallback toggle state so QS uses ON/OFF commands (same as app buttons). */
+    fun nextTileCommandIsOn(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_TILE_NEXT_FORCE_ON, true)
+    }
+
+    fun setNextTileCommandIsOn(context: Context, value: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_TILE_NEXT_FORCE_ON, value)
             .apply()
     }
 }

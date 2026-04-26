@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -20,6 +21,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.view.WindowCompat
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.DebugLog
 import com.spandan.instanthotspot.core.OnboardingV2
@@ -54,6 +56,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clientHotspotConfigText: TextView
     private lateinit var hostDebugLogText: TextView
     private lateinit var controllerDebugLogText: TextView
+    private lateinit var hostVerboseTitleText: TextView
+    private lateinit var controllerVerboseTitleText: TextView
     private lateinit var appVersionText: TextView
     private lateinit var hostInstallCompatText: TextView
     private lateinit var btnConfirmPairing: Button
@@ -113,7 +117,7 @@ class MainActivity : AppCompatActivity() {
             val p = packageManager.getPackageInfo(packageName, 0)
             val vn = p.versionName ?: "?"
             val vc = p.longVersionCode
-            ver.text = "v$vn ($vc)"
+            ver.text = "v$vn ($vc) • ${BuildConfig.GIT_SHA}"
         }.onFailure { ver.text = "" }
         val pager = findViewById<ViewPager2>(R.id.onboardingPager)
         pager.isUserInputEnabled = false
@@ -176,7 +180,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.simpleAppVersion).let { st ->
             runCatching {
                 val p = packageManager.getPackageInfo(packageName, 0)
-                st.text = "Version ${p.versionName} (${p.longVersionCode})"
+                st.text = "Version ${p.versionName} (${p.longVersionCode}) • ${BuildConfig.GIT_SHA}"
             }
         }
         findViewById<Button>(R.id.btnSimpleOn).setOnClickListener {
@@ -192,6 +196,15 @@ class MainActivity : AppCompatActivity() {
                 "HOTSPOT_OFF",
                 R.string.toast_client_hotspot_off_sent,
             )
+        }
+        findViewById<MaterialSwitch>(R.id.switchSimpleMode)?.apply {
+            isChecked = true
+            setOnCheckedChangeListener { _, checked ->
+                if (!checked) {
+                    AppPrefs.setUseSimpleHome(this@MainActivity, false)
+                    recreate()
+                }
+            }
         }
         renderSimpleHome()
     }
@@ -215,7 +228,7 @@ class MainActivity : AppCompatActivity() {
             val p = packageManager.getPackageInfo(packageName, 0)
             val v = p.versionName ?: "unknown"
             val c = p.longVersionCode
-            appVersionText.text = "Version $v ($c)"
+            appVersionText.text = "Version $v ($c) • ${BuildConfig.GIT_SHA}"
             DebugLog.append(this, "APP", "Boot: versionName=$v versionCode=$c")
         }.onFailure {
             appVersionText.text = ""
@@ -224,6 +237,7 @@ class MainActivity : AppCompatActivity() {
         val modeGroup = findViewById<RadioGroup>(R.id.modeGroup)
         val host = findViewById<RadioButton>(R.id.radioHost)
         val controller = findViewById<RadioButton>(R.id.radioController)
+        val switchVerbose = findViewById<MaterialSwitch>(R.id.switchVerboseMode)
         hostSection = findViewById(R.id.hostSection)
         controllerSection = findViewById(R.id.controllerSection)
         hostSecretText = findViewById(R.id.hostSecretText)
@@ -244,6 +258,8 @@ class MainActivity : AppCompatActivity() {
         clientHotspotConfigText = findViewById(R.id.clientHotspotConfigText)
         hostDebugLogText = findViewById(R.id.hostDebugLogText)
         controllerDebugLogText = findViewById(R.id.controllerDebugLogText)
+        hostVerboseTitleText = findViewById(R.id.hostVerboseTitleText)
+        controllerVerboseTitleText = findViewById(R.id.controllerVerboseTitleText)
         btnClientHotspotOn = findViewById(R.id.btnClientHotspotOn)
         btnClientHotspotOff = findViewById(R.id.btnClientHotspotOff)
         btnClientSyncConfig = findViewById(R.id.btnClientSyncConfig)
@@ -259,6 +275,11 @@ class MainActivity : AppCompatActivity() {
             else -> controller.isChecked = true
         }
         val initialMode = if (host.isChecked) MODE_HOST else MODE_CONTROLLER
+        switchVerbose.isChecked = true
+        switchVerbose.setOnCheckedChangeListener { _, checked ->
+            applyVerboseUi(checked)
+        }
+        applyVerboseUi(switchVerbose.isChecked)
         applyModeUi(initialMode)
         if (initialMode == MODE_HOST) {
             ensureHostSecretInitialized()
@@ -676,11 +697,48 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     DebugLog.append(this, "CTRL_UI", "Hotspot config sync success: ${config.take(80)}")
                     clientHotspotConfigText.text = formatHotspotConfigForDisplay(config)
-                    Toast.makeText(this, getString(R.string.client_sync_success), Toast.LENGTH_SHORT).show()
+                    val creds = parseSsidPassword(config)
+                    if (creds != null) {
+                        Toast.makeText(
+                            this,
+                            getString(R.string.client_sync_connect_hint, creds.ssid, creds.password),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        runCatching {
+                            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+                        }
+                    } else {
+                        Toast.makeText(this, getString(R.string.client_sync_missing_credentials), Toast.LENGTH_LONG).show()
+                    }
                 }
                 renderCurrentSecret()
             }
         }
+    }
+
+    private fun applyVerboseUi(enabled: Boolean) {
+        hostVerboseTitleText.visibility = if (enabled) View.VISIBLE else View.GONE
+        hostDebugLogText.visibility = if (enabled) View.VISIBLE else View.GONE
+        btnHostClearLogs.visibility = if (enabled) View.VISIBLE else View.GONE
+        controllerVerboseTitleText.visibility = if (enabled) View.VISIBLE else View.GONE
+        controllerDebugLogText.visibility = if (enabled) View.VISIBLE else View.GONE
+        btnControllerClearLogs.visibility = if (enabled) View.VISIBLE else View.GONE
+    }
+
+    private data class HotspotCredentials(val ssid: String, val password: String)
+
+    private fun parseSsidPassword(raw: String): HotspotCredentials? {
+        val ssidRegexes = listOf(
+            Regex("""(?i)\bssid\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
+            Regex("""(?i)\bnetworkName\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
+        )
+        val passRegexes = listOf(
+            Regex("""(?i)\b(passphrase|password|psk|preSharedKey)\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
+        )
+        val ssid = ssidRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(1)?.trim() }
+        val pass = passRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(2)?.trim() }
+        if (ssid.isNullOrBlank() || pass.isNullOrBlank()) return null
+        return HotspotCredentials(ssid, pass)
     }
 
     private fun formatHotspotConfigForDisplay(raw: String): String {

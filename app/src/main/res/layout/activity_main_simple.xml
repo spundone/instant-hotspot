@@ -36,9 +36,8 @@
                 style="@style/TextAppearance.Material3.BodySmall"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:letterSpacing="0.06"
                 android:text="@string/author_byline"
-                android:textColor="#0099FF" />
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
             <TextView
                 style="@style/TextAppearance.Material3.BodySmall"
@@ -47,6 +46,13 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/simple_subtitle"
                 android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchSimpleMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/ui_mode_simple" />
 
             <TextView
                 android:id="@+id/simpleAppVersion"
@@ -74,14 +80,14 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSimpleOn"
-                        style="@style/Widget.Material3.Button"
+                        style="@style/Widget.InstantHotspot.Button.Expressive"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/client_hotspot_on" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSimpleOff"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"

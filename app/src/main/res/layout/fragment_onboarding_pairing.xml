@@ -86,14 +86,14 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obhBtnTogglePair"
-                    style="@style/Widget.Material3.Button.TonalButton"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obhBtnReadvertise"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -101,7 +101,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obhBtnApprove"
-                    style="@style/Widget.Material3.Button"
+                    style="@style/Widget.InstantHotspot.Button.Expressive"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -151,7 +151,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obcSaveSecret"
-                    style="@style/Widget.Material3.Button.TonalButton"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -159,7 +159,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obcStart"
-                    style="@style/Widget.Material3.Button"
+                    style="@style/Widget.InstantHotspot.Button.Expressive"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -175,7 +175,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obcConfirm"
-                    style="@style/Widget.Material3.Button.TonalButton"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
