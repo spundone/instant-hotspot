@@ -27,6 +27,7 @@ class OnboardingRoleFragment : Fragment(R.layout.fragment_onboarding_role) {
         g.setOnCheckedChangeListener { _, _ ->
             applyMode()
         }
+        applyMode()
     }
 
     private fun applyMode() {
