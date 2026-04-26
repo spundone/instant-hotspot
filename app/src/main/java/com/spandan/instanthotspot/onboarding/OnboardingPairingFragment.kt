@@ -11,21 +11,19 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
-import com.spandan.instanthotspot.MainActivity
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.controller.BlePairingClient
 import com.spandan.instanthotspot.controller.PairingStartError
 import com.spandan.instanthotspot.controller.PairingSession
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.DebugLog
+import com.spandan.instanthotspot.core.OnboardingV2
 import com.spandan.instanthotspot.core.RandomSecret
 import com.spandan.instanthotspot.host.HostBleService
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
 
 class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing) {
-    private val prefsName = "instant_hotspot_prefs"
-    private val keyMode = "mode"
     private val handler = Handler(Looper.getMainLooper())
     private var backgroundExecutor: ExecutorService? = null
     @Volatile
@@ -100,8 +98,7 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         updatePairedBanner()
     }
 
-    private fun isHost(): Boolean = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-        .getString(keyMode, MainActivity.MODE_CONTROLLER) == MainActivity.MODE_HOST
+    private fun isHost(): Boolean = OnboardingV2.isHostModeForOnboarding(requireContext())
 
     override fun onResume() {
         super.onResume()

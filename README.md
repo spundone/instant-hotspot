@@ -12,7 +12,7 @@ You may choose either license for your use/distribution:
 
 ## Current status
 
-- **v0.6.1+** (v0.6.0 with onboarding hotfix): Same as **0.6.0** (onboarding, project tools, M3 widget, host BLE/notification work), **plus** fix for a crash on the **first-launch** walkthrough when the **role** step is preloaded (do not re-bind the ViewPager for the same step count). Builds: <https://github.com/spundone/instant-hotspot/releases> (**APK** + **Magisk** zip per release).
+- **v0.6.2+** / **0.6.1**: Onboarding: host walkthrough (pairing, controls, network) now follows the **host** path when the user picked **Host** but root/module checks are not done yet (prefs stay on controller until verified); role step includes a **KernelSU** note to enable “View system apps” when granting **Superuser**. **0.6.1** also fixed a first-launch **ViewPager** crash on the role step. Builds: <https://github.com/spundone/instant-hotspot/releases> (**APK** + **Magisk** zip per release).
 - **v0.4.0+**: **M3** home refactor (split layouts, **tablet / landscape** two-pane, entrance + **Material fade** for mode and verbose), **host foreground live status** notification (hotspot on/off, paired controller, paired-since) with promoted-ongoing support where the OS allows, BLE **host state** + **config** plumbing, **`cli/`** companion. Repo: <https://github.com/spundone/instant-hotspot>.
 - **v0.3.0+**: In-app **GitHub** and **Releases (APK + Magisk / KernelSU zip)** links, **Check for updates** (GitHub API), shortcuts to **tethering / Bluetooth / app info / battery** optimization, **copy debug log**; `lint` clean with manifest and BLE suppressions.
 - **v0.2.1+**: BLE **state** characteristic for on/off/unknown AP (tile + widget), **pending pairing** survives host service restarts, optional **bond-only** command allowlist on the host, shared **HotspotConfigParser**, and an experimental **`cli/`** scanner (Python + bleak).
@@ -113,7 +113,7 @@ That string is almost always the **JVM** Gradle is using. **Gradle 8.7** cannot 
 2. **Testing:** more OEM coverage for the state characteristic + soft AP probe edge cases.
 3. **Optional:** host-side notifications when AP state flips (without polling from controller).
 
-**Release artifacts:** each [GitHub release](https://github.com/spundone/instant-hotspot/releases) publishes a versioned **APK** and **`InstantHotspot-magisk-*.zip`**; see **v0.6.1+** above for the latest feature set. (Older milestones remain in the version bullets, e.g. v0.2.1+ for GATT `STATE` and the `cli/` scanner.)
+**Release artifacts:** each [GitHub release](https://github.com/spundone/instant-hotspot/releases) publishes a versioned **APK** and **`InstantHotspot-magisk-*.zip`**; see **v0.6.2+** above for the latest feature set. (Older milestones remain in the version bullets, e.g. v0.2.1+ for GATT `STATE` and the `cli/` scanner.)
 
 ## Contributing
 

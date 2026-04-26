@@ -149,7 +149,8 @@
     <string name="ob_role_host">Host (hotspot + SIM)</string>
     <string name="ob_role_controller">Controller (remote)</string>
     <string name="ob_host_prereq_title">Host: Magisk + root</string>
-    <string name="ob_host_prereq_body">1. Flash the Instant Hotspot Magisk/KernelSU zip from releases.\n2. Open Magisk, grant this app superuser, enable the module if needed.\n3. Reboot.\n4. Return here and tap Check.</string>
+    <string name="ob_host_prereq_body">1. Flash the Instant Hotspot Magisk/KernelSU zip from releases.\n2. Open your root manager and grant this app Superuser; enable the module if needed. (If you use KernelSU and the app is not listed, use the tip below.)\n3. Reboot.\n4. Return here and tap Check.</string>
+    <string name="ob_host_ksu_superuser_tip">KernelSU: in this app’s profile, turn on “View system apps” (the exact label can vary) so the list can include a system/priv install. Then grant Superuser to Instant Hotspot.</string>
     <string name="ob_host_prereq_check">Check host setup</string>
     <string name="ob_host_prereq_status_ok">Root + module OK. You can continue.</string>
     <string name="ob_host_prereq_status_fail">Not ready: need working `su` and the flashed module (or TETHER_PRIVILEGED as priv-app).</string>

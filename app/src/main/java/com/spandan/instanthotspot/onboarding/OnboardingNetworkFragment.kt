@@ -10,18 +10,16 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.spandan.instanthotspot.MainActivity
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.HostCompatSummary
 import com.spandan.instanthotspot.core.HotspotConfigParser
 import com.spandan.instanthotspot.core.HotspotController
+import com.spandan.instanthotspot.core.OnboardingV2
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
 
 class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network) {
-    private val prefsName = "instant_hotspot_prefs"
-    private val keyMode = "mode"
     private val handler = Handler(Looper.getMainLooper())
     private var backgroundExecutor: ExecutorService? = null
     @Volatile
@@ -37,8 +35,7 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
         }
     }
 
-    private fun isHost() = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-        .getString(keyMode, MainActivity.MODE_CONTROLLER) == MainActivity.MODE_HOST
+    private fun isHost() = OnboardingV2.isHostModeForOnboarding(requireContext())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

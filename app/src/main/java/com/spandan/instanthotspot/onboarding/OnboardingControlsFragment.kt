@@ -12,14 +12,10 @@ import com.spandan.instanthotspot.controller.CommandSendStatus
 import com.spandan.instanthotspot.controller.ControllerCommandSender
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.HotspotCommand
-import com.spandan.instanthotspot.MainActivity
+import com.spandan.instanthotspot.core.OnboardingV2
 
 class OnboardingControlsFragment : Fragment(R.layout.fragment_onboarding_controls) {
-    private val prefsName = "instant_hotspot_prefs"
-    private val keyMode = "mode"
-
-    private fun isHost() = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-        .getString(keyMode, MainActivity.MODE_CONTROLLER) == MainActivity.MODE_HOST
+    private fun isHost() = OnboardingV2.isHostModeForOnboarding(requireContext())
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val hostC = view.findViewById<MaterialCardView>(R.id.obControlHostTextCard)

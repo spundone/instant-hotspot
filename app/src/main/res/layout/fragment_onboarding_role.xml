@@ -91,6 +91,15 @@
                     android:lineSpacingExtra="2dp"
                     android:text="@string/ob_host_prereq_body" />
 
+                <TextView
+                    style="@style/TextAppearance.Material3.BodySmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="2dp"
+                    android:text="@string/ob_host_ksu_superuser_tip"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obVerifyHostSetup"
                     style="@style/Widget.InstantHotspot.Button.Expressive"

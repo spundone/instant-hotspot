@@ -29,7 +29,18 @@ object OnboardingV2 {
             .getString(KEY_MODE, MODE_CONTROLLER) == MODE_HOST
     }
 
-    fun pageCount(context: Context): Int = if (isHostMode(context)) 5 else 6
+    /**
+     * Walkthrough that uses the **host** branch (5 steps, host pairing, etc.).
+     * While host prereqs are not met, [AppPrefs] may temporarily keep `mode` = controller; we still
+     * treat the user as host for UI if they chose **Host** on the role step ([isOnboardingWantsHost]).
+     */
+    fun isHostModeForOnboarding(context: Context): Boolean {
+        if (isHostMode(context)) return true
+        if (isFlowComplete(context)) return false
+        return AppPrefs.isOnboardingWantsHost(context)
+    }
+
+    fun pageCount(context: Context): Int = if (isHostModeForOnboarding(context)) 5 else 6
 
     fun migrateIfNeeded(context: Context) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
