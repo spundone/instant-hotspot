@@ -13,12 +13,14 @@ android {
         applicationId = "com.spandan.instanthotspot"
         minSdk = 29
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.0"
+        versionCode = 6
+        versionName = "0.4.0"
         val gitSha = providers.exec {
             commandLine("git", "rev-parse", "--short=8", "HEAD")
         }.standardOutput.asText.get().trim().ifBlank { "dev" }
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("String", "GITHUB_OWNER", "\"spundone\"")
+        buildConfigField("String", "GITHUB_REPO", "\"instant-hotspot\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

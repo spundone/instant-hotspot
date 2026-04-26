@@ -12,6 +12,8 @@ You may choose either license for your use/distribution:
 
 ## Current status
 
+- **v0.3.0+**: In-app **GitHub** and **Releases (APK + Magisk / KernelSU zip)** links, **Check for updates** (GitHub API), shortcuts to **tethering / Bluetooth / app info / battery** optimization, **copy debug log**; `lint` clean with manifest and BLE suppressions. Repo: <https://github.com/spundone/instant-hotspot>.
+- **v0.2.1+**: BLE **state** characteristic for on/off/unknown AP (tile + widget), **pending pairing** survives host service restarts, optional **bond-only** command allowlist on the host, shared **HotspotConfigParser**, and an experimental **`cli/`** scanner (Python + bleak).
 - **v0.2.0+**: Multi-step in-app set-up (welcome → role → pairing → remote controls → Wi‑Fi / sync of hotspot
   settings → tiles & widgets), then a **minimal home** for the controller, or the full “console” for
   the host. Existing installs skip the set-up; use **Run set-up again** in the app menu to replay it.
@@ -47,17 +49,27 @@ You may choose either license for your use/distribution:
 - `app/src/main/java/com/spandan/instanthotspot/tile/HotspotTileService.kt` - Quick Settings tile
 - `app/src/main/java/com/spandan/instanthotspot/widget/HotspotWidgetProvider.kt` - widget trigger
 
-## Magisk (or system) module on the host
+## Host Magisk module: when, why, how
 
-Sideloaded or debug builds **must** be able to hold **TETHER_PRIVILEGED** for the in-process
-[tethering API](https://developer.android.com/reference/android/net/TetheringManager) to work
-reliably (that’s what the app and the Quick Settings tile use). The practical way to get that
-on a custom ROM / root setup is the **module in `magisk_module/`**: it installs
-this package under `system/priv-app` with the right allowlist. **Without it, remote ON/OFF and the
-tile may fail** even if basic `cmd` or `ndc` shell invocations work sometimes.
+### When you need it
 
-A **true `priv-app` or OEM-integrated** install is the other supported path. Root alone does not
-replace the privileged application signature/allowlist model for `TETHER_PRIVILEGED`.
+- You are using a **sideloaded host app install** (normal APK install, debug install, not ROM-integrated priv-app).
+- You want reliable remote hotspot control from controller app buttons, widget, and QS tile.
+
+### Why it is needed
+
+- Android's in-process tethering API requires **`TETHER_PRIVILEGED`**.
+- Root alone does not grant this app-privilege model by itself.
+- On many ROMs, shell-only fallback commands can be inconsistent, while priv-app + allowlist remains stable.
+
+### How to enable it
+
+1. Flash the host module from **`magisk_module/`**.
+2. Reboot host device.
+3. Open Instant Hotspot on host and verify compatibility status.
+4. Pair controller again if needed and test ON/OFF + sync.
+
+Alternative: install as a true ROM-integrated `priv-app` with proper allowlist.
 
 ## Open in Android Studio
 
@@ -86,10 +98,11 @@ That string is almost always the **JVM** Gradle is using. **Gradle 8.7** cannot 
 
 ## Next implementation steps
 
-1. Add explicit ACK/state characteristic so tile/widget can show real hotspot state instead of reachability heuristics.
-2. Harden host config parsing across ROMs (normalize SSID/password extraction from `cmd wifi` and settings outputs).
-3. Persist pending-pair state across host service restarts (currently in-memory map).
-4. Add optional bonded-device allowlist on host for an extra security layer.
+1. **CLI:** extend `cli/` to sign commands (HMAC) and match `CommandCodec` / pairing wire format; today the folder includes BLE **scan** + docs.
+2. **Testing:** more OEM coverage for the state characteristic + soft AP probe edge cases.
+3. **Optional:** host-side notifications when AP state flips (without polling from controller).
+
+**Recently added (v0.2.1+):** GATT `STATE` read (`ap=0|1|2`) for real hotspot on/off in the tile and widget, hardened SSID/password parsing, persisted BLE pending-pairing map across host process restarts, host toggle **only Bluetooth-bonded** senders, widget shows paired name + AP state, and a starter **Python + bleak** CLI under `cli/`.
 
 ## Contributing
 

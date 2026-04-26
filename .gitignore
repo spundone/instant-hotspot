@@ -10,3 +10,6 @@ tethering-impl/build/
 tethering-stub/build/
 .cursor/
 artifacts/
+# Python
+__pycache__/
+*.pyc
