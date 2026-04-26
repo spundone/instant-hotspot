@@ -15,11 +15,15 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.view.WindowCompat
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.appbar.MaterialToolbar
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.DebugLog
+import com.spandan.instanthotspot.core.OnboardingV2
+import com.spandan.instanthotspot.onboarding.OnboardingPagerAdapter
 import com.spandan.instanthotspot.core.HotspotCommand
 import com.spandan.instanthotspot.controller.BlePairingClient
 import com.spandan.instanthotspot.controller.CommandSendStatus
@@ -28,12 +32,14 @@ import com.spandan.instanthotspot.controller.PairingStartError
 import com.spandan.instanthotspot.controller.PairingSession
 import com.spandan.instanthotspot.core.HotspotController
 import com.spandan.instanthotspot.core.HostCompatSummary
+import com.spandan.instanthotspot.core.RandomSecret
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.spandan.instanthotspot.host.HostBleService
-import java.security.SecureRandom
 import java.util.concurrent.Executors
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+    private var inOnboarding: Boolean = false
+    private var useSimpleLayout: Boolean = false
     private lateinit var hostSection: View
     private lateinit var controllerSection: View
     private lateinit var hostSecretText: TextView
@@ -81,7 +87,128 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
-        setContentView(R.layout.activity_main)
+        OnboardingV2.migrateIfNeeded(this)
+        requestRuntimePermissions()
+        if (!OnboardingV2.isFlowComplete(this)) {
+            inOnboarding = true
+            setContentView(R.layout.activity_onboarding)
+            setupOnboardingUi()
+            return
+        }
+        inOnboarding = false
+        useSimpleLayout = AppPrefs.useSimpleHome(this) && currentMode() == MODE_CONTROLLER
+        if (useSimpleLayout) {
+            setContentView(R.layout.activity_main_simple)
+            setupSimpleHome()
+        } else {
+            setContentView(R.layout.activity_main)
+            setupFullMain()
+        }
+    }
+
+    private fun setupOnboardingUi() {
+        val ver = findViewById<TextView>(R.id.onboardingVersion)
+        val step = findViewById<TextView>(R.id.onboardingStepLabel)
+        runCatching {
+            val p = packageManager.getPackageInfo(packageName, 0)
+            val vn = p.versionName ?: "?"
+            val vc = p.longVersionCode
+            ver.text = "v$vn ($vc)"
+        }.onFailure { ver.text = "" }
+        val pager = findViewById<ViewPager2>(R.id.onboardingPager)
+        pager.isUserInputEnabled = false
+        pager.adapter = OnboardingPagerAdapter(this)
+        var page = OnboardingV2.currentPageOrDone(this)
+        if (page < 0) page = 0
+        pager.setCurrentItem(page.coerceIn(0, OnboardingV2.PAGE_COUNT - 1), false)
+        val back = findViewById<Button>(R.id.onboardingBack)
+        val next = findViewById<Button>(R.id.onboardingNext)
+        fun updateNavLabels(p: Int) {
+            OnboardingV2.setPage(this, p)
+            step.text = getString(R.string.onboarding_step, p + 1, OnboardingV2.PAGE_COUNT)
+            back.isEnabled = p > 0
+            next.text = if (p >= OnboardingV2.PAGE_COUNT - 1) {
+                getString(R.string.onboarding_finish)
+            } else {
+                getString(R.string.onboarding_next)
+            }
+        }
+        updateNavLabels(pager.currentItem)
+        pager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                updateNavLabels(position)
+            }
+        })
+        back.setOnClickListener {
+            if (pager.currentItem > 0) {
+                pager.setCurrentItem(pager.currentItem - 1, true)
+            } else {
+                onBackPressedDispatcher.onBackPressed()
+            }
+        }
+        next.setOnClickListener {
+            if (pager.currentItem < OnboardingV2.PAGE_COUNT - 1) {
+                pager.setCurrentItem(pager.currentItem + 1, true)
+            } else {
+                OnboardingV2.markFlowComplete(this, currentMode() == MODE_CONTROLLER)
+                recreate()
+            }
+        }
+    }
+
+    private fun setupSimpleHome() {
+        val t = findViewById<MaterialToolbar>(R.id.simpleToolbar)
+        t.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.menu_full_console -> {
+                    AppPrefs.setUseSimpleHome(this, false)
+                    recreate()
+                    true
+                }
+                R.id.menu_rerun_onboarding -> {
+                    OnboardingV2.resetFlow(this)
+                    recreate()
+                    true
+                }
+                else -> false
+            }
+        }
+        findViewById<TextView>(R.id.simpleAppVersion).let { st ->
+            runCatching {
+                val p = packageManager.getPackageInfo(packageName, 0)
+                st.text = "Version ${p.versionName} (${p.longVersionCode})"
+            }
+        }
+        findViewById<Button>(R.id.btnSimpleOn).setOnClickListener {
+            sendClientHotspotCommand(
+                HotspotCommand.HOTSPOT_ON,
+                "HOTSPOT_ON",
+                R.string.toast_client_hotspot_on_sent,
+            )
+        }
+        findViewById<Button>(R.id.btnSimpleOff).setOnClickListener {
+            sendClientHotspotCommand(
+                HotspotCommand.HOTSPOT_OFF,
+                "HOTSPOT_OFF",
+                R.string.toast_client_hotspot_off_sent,
+            )
+        }
+        renderSimpleHome()
+    }
+
+    private fun renderSimpleHome() {
+        if (!useSimpleLayout) return
+        val t = findViewById<TextView>(R.id.simpleStatusText) ?: return
+        val paired = AppPrefs.isClientPaired(this)
+        val connected = AppPrefs.isHostReachableRecently(this)
+        t.text = when {
+            !paired -> getString(R.string.client_status_not_paired)
+            connected -> getString(R.string.client_status_paired_connected)
+            else -> getString(R.string.client_status_paired_disconnected)
+        }
+    }
+
+    private fun setupFullMain() {
         appVersionText = findViewById(R.id.appVersionText)
         hostInstallCompatText = findViewById(R.id.hostInstallCompatText)
         runCatching {
@@ -93,8 +220,6 @@ class MainActivity : ComponentActivity() {
         }.onFailure {
             appVersionText.text = ""
         }
-        requestRuntimePermissions()
-
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val modeGroup = findViewById<RadioGroup>(R.id.modeGroup)
         val host = findViewById<RadioButton>(R.id.radioHost)
@@ -200,12 +325,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (inOnboarding) {
+            return
+        }
+        if (useSimpleLayout) {
+            renderSimpleHome()
+            return
+        }
         uiHandler.removeCallbacks(statusRefreshRunnable)
         uiHandler.post(statusRefreshRunnable)
     }
 
     override fun onPause() {
-        uiHandler.removeCallbacks(statusRefreshRunnable)
+        if (!inOnboarding) {
+            uiHandler.removeCallbacks(statusRefreshRunnable)
+        }
         super.onPause()
     }
 
@@ -254,6 +388,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun renderCurrentSecret() {
+        if (useSimpleLayout) {
+            renderSimpleHome()
+            return
+        }
         if (currentMode() == MODE_HOST) {
             refreshHostInstallCompat()
         }
@@ -418,13 +556,7 @@ class MainActivity : ComponentActivity() {
         AppPrefs.setSharedSecret(this, generateReadableSecret())
     }
 
-    private fun generateReadableSecret(): String {
-        val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        val random = SecureRandom()
-        return buildString {
-            repeat(24) { append(alphabet[random.nextInt(alphabet.length)]) }
-        }
-    }
+    private fun generateReadableSecret(): String = RandomSecret.newReadable()
 
     private fun startPairingHandshake() {
         if (pairingStartInProgress || pairingConfirmInProgress) return

@@ -83,4 +83,37 @@
     <string name="unpair_host_done">Host pairing cleared. New secret is shown above.</string>
     <string name="unpair_controller_done">Controller pairing cleared.</string>
     <string name="unpair_confirm">Unpair</string>
+
+    <string name="onboarding_title">Set up</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_finish">Get started</string>
+    <string name="onboarding_step">Step %1$d of %2$d</string>
+    <string name="ob_welcome_title">Control the hotspot from another device</string>
+    <string name="ob_welcome_body">The phone that has mobile data runs in Host mode. Your tablet (or a second phone) uses Controller mode over Bluetooth to turn the access point on or off without opening settings on the host. The host should use the project Magisk module for reliable TETHER_PRIVILEGED tethering on many ROMs.</string>
+    <string name="ob_role_title">Which device is this?</string>
+    <string name="ob_role_host">I am the main phone (hotspot + SIM / data plan)</string>
+    <string name="ob_role_controller">I am the tablet or secondary device</string>
+    <string name="ob_pairing_title">Pairing</string>
+    <string name="ob_pairing_hint_host">On this phone: keep Host mode, enable pairing when needed, and approve the code from the other device. On the controller: start nearby pairing and match the short code.</string>
+    <string name="ob_pairing_hint_controller">Put the host phone near this device, open the host in Host mode, then use Start nearby pairing and confirm the code. You can also paste the host’s secret and save.</string>
+    <string name="ob_controls_title">Remote control</string>
+    <string name="ob_controls_host_body">The hotspot is driven on this device. You can add a tile or widget after this walkthrough, or use the full console (⋮) for logs and more.</string>
+    <string name="ob_network_title">Wi‑Fi &amp; hotspot info</string>
+    <string name="ob_network_host_body">Other devices should join this phone’s access point. Use the full console to see the latest AP / tether status.</string>
+    <string name="ob_network_wifi_off">Not connected to Wi‑Fi (or Wi‑Fi off)</string>
+    <string name="ob_network_wifi_on_no_ssid">On Wi‑Fi, but SSID is hidden. Grant location and stay near the access point to see the name.</string>
+    <string name="ob_network_wifi_ssid">Connected to: %1$s</string>
+    <string name="ob_shortcuts_title">Tiles &amp; widgets</string>
+    <string name="ob_shortcuts_body">Add the Quick Settings tile to toggle the hotspot in one tap. Add the home screen widget for the same. Some launchers need you to add tiles by editing the quick settings panel.</string>
+    <string name="ob_add_tile">Request Quick Settings tile</string>
+    <string name="ob_add_widget">Add home screen widget</string>
+    <string name="ob_tile_added_or_prompt">If the system supports it, a prompt appears to add the tile. Otherwise, edit the quick settings panel and drag the tile in.</string>
+    <string name="ob_widget_pin_prompt">If your launcher allows it, you can pin the widget. Otherwise, long-press the home screen → Widgets → Instant Hotspot.</string>
+    <string name="ob_tile_too_old">Add the tile from the quick settings panel (Edit) on this Android version.</string>
+
+    <string name="main_menu_full_console">Full console &amp; logs</string>
+    <string name="main_menu_rerun_onboarding">Run set-up again</string>
+    <string name="simple_subtitle">Remote from this device (controller)</string>
+    <string name="simple_status_prefix">Status:</string>
 </resources>

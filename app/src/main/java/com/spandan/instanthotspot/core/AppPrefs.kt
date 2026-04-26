@@ -16,6 +16,7 @@ object AppPrefs {
     private const val KEY_LAST_PAIRED_HOST = "last_paired_host"
     private const val KEY_LAST_PAIRED_CONTROLLER = "last_paired_controller"
     private const val KEY_LAST_AP_STATE = "last_ap_state_line"
+    private const val KEY_USE_SIMPLE_HOME = "use_simple_controller_home"
 
     // Replace with pairing-generated secret in the next milestone.
     private const val DEFAULT_DEV_SECRET = "change-me-before-production"
@@ -185,5 +186,21 @@ object AppPrefs {
         setLastPairedHost(context, null)
         setLastSyncedHotspotConfig(context, null)
         setSharedSecret(context, DEFAULT_DEV_SECRET)
+    }
+
+    /**
+     * When true, controller home uses a minimal remote on/off screen (after onboarding v2).
+     * Host always uses the full console regardless.
+     */
+    fun useSimpleHome(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_USE_SIMPLE_HOME, true)
+    }
+
+    fun setUseSimpleHome(context: Context, useSimple: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_USE_SIMPLE_HOME, useSimple)
+            .apply()
     }
 }

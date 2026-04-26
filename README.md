@@ -4,6 +4,9 @@ Android app scaffold for controlling hotspot on a rooted primary phone from a se
 
 ## Current status
 
+- **v0.2.0+**: Multi-step in-app set-up (welcome → role → pairing → remote controls → Wi‑Fi / sync of hotspot
+  settings → tiles & widgets), then a **minimal home** for the controller, or the full “console” for
+  the host. Existing installs skip the set-up; use **Run set-up again** in the app menu to replay it.
 - Single Android app with runtime mode selection:
   - Host mode (primary/rooted device)
   - Controller mode (tablet/secondary device)
