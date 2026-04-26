@@ -44,6 +44,7 @@ import com.spandan.instanthotspot.core.HotspotController
 import com.spandan.instanthotspot.core.LocalAlertPlayer
 import com.spandan.instanthotspot.core.NetworkRadioTuning
 import com.spandan.instanthotspot.core.HotspotStateProbe
+import com.spandan.instanthotspot.core.PairedControllerRegistry
 import com.spandan.instanthotspot.core.PairingCrypto
 import com.spandan.instanthotspot.core.PairingCodec
 import java.util.concurrent.ExecutorService
@@ -224,32 +225,48 @@ class HostBleService : Service() {
             offset: Int,
             value: ByteArray?,
         ) {
-            val response = when {
-                characteristic?.uuid == BleProtocol.COMMAND_CHAR_UUID && value != null && device != null ->
-                    if (processCommandWrite(device, value)) "OK" else "FAIL"
-                characteristic?.uuid == BleProtocol.COMMAND_CHAR_UUID && value != null && device == null ->
-                    "FAIL"
-                characteristic?.uuid == BleProtocol.PAIRING_CHAR_UUID && value != null && device != null ->
-                    processPairingWrite(device.address, value)
-                else -> "FAIL"
-            }
-            if (characteristic?.uuid == BleProtocol.PAIRING_CHAR_UUID) {
-                // Keep the latest pairing status readable by clients after write.
-                characteristic.value = response.toByteArray(Charsets.UTF_8)
-            }
-            if (responseNeeded) {
-                val statusCode = when {
-                    characteristic?.uuid == BleProtocol.PAIRING_CHAR_UUID -> BluetoothGatt.GATT_SUCCESS
-                    response != "FAIL" -> BluetoothGatt.GATT_SUCCESS
-                    else -> BluetoothGatt.GATT_FAILURE
+            // Any throw here used to take down the app from the GATT / binder thread (e.g. long
+            // characteristic value, OEM BLE bugs, or I/O in pairing).
+            var response = "FAIL"
+            try {
+                response = when {
+                    characteristic?.uuid == BleProtocol.COMMAND_CHAR_UUID && value != null && device != null ->
+                        if (processCommandWrite(device, value)) "OK" else "FAIL"
+                    characteristic?.uuid == BleProtocol.COMMAND_CHAR_UUID && value != null && device == null ->
+                        "FAIL"
+                    characteristic?.uuid == BleProtocol.PAIRING_CHAR_UUID && value != null && device != null ->
+                        processPairingWrite(device.address, value)
+                    else -> "FAIL"
                 }
-                gattServer?.sendResponse(
-                    device,
-                    requestId,
-                    statusCode,
-                    0,
-                    response.toByteArray(Charsets.UTF_8),
+                if (characteristic?.uuid == BleProtocol.PAIRING_CHAR_UUID) {
+                    // Keep the latest pairing status readable by clients after write.
+                    runCatching {
+                        characteristic.value = response.toByteArray(Charsets.UTF_8)
+                    }
+                }
+                if (responseNeeded) {
+                    val statusCode = when {
+                        characteristic?.uuid == BleProtocol.PAIRING_CHAR_UUID -> BluetoothGatt.GATT_SUCCESS
+                        response != "FAIL" -> BluetoothGatt.GATT_SUCCESS
+                        else -> BluetoothGatt.GATT_FAILURE
+                    }
+                    gattServer?.sendResponse(
+                        device,
+                        requestId,
+                        statusCode,
+                        0,
+                        response.toByteArray(Charsets.UTF_8),
+                    )
+                }
+            } catch (t: Throwable) {
+                DebugLog.append(
+                    this@HostBleService,
+                    "HOST_BLE",
+                    "onCharacteristicWriteRequest: ${t.javaClass.simpleName} ${t.message}",
                 )
+                if (responseNeeded) {
+                    gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_FAILURE, 0, null)
+                }
             }
         }
 
@@ -259,12 +276,21 @@ class HostBleService : Service() {
             offset: Int,
             characteristic: BluetoothGattCharacteristic?,
         ) {
-            val response: ByteArray? = when (characteristic?.uuid) {
-                BleProtocol.PAIRING_CHAR_UUID -> characteristic.value ?: byteArrayOf()
-                BleProtocol.CONFIG_CHAR_UUID -> HotspotController.hotspotConfigSummary().toByteArray(Charsets.UTF_8)
-                BleProtocol.STATE_CHAR_UUID ->
-                    HostStateCodec.encodeFromProbe(HotspotStateProbe.currentApState(this@HostBleService))
-                else -> null
+            val response: ByteArray? = try {
+                when (characteristic?.uuid) {
+                    BleProtocol.PAIRING_CHAR_UUID -> characteristic.value ?: byteArrayOf()
+                    BleProtocol.CONFIG_CHAR_UUID -> HotspotController.hotspotConfigSummary().toByteArray(Charsets.UTF_8)
+                    BleProtocol.STATE_CHAR_UUID ->
+                        HostStateCodec.encodeFromProbe(HotspotStateProbe.currentApState(this@HostBleService))
+                    else -> null
+                }
+            } catch (t: Throwable) {
+                DebugLog.append(
+                    this@HostBleService,
+                    "HOST_BLE",
+                    "onCharacteristicReadRequest: ${t.javaClass.simpleName} ${t.message}",
+                )
+                null
             }
             if (response != null) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, response)
@@ -289,8 +315,21 @@ class HostBleService : Service() {
         }
         val envelope = CommandCodec.decode(raw) ?: return false
         val payload = CommandCodec.payload(envelope.command, envelope.timestampMs, envelope.nonce)
-        val secret = AppPrefs.sharedSecret(this)
-        if (!CommandSecurity.verify(payload, envelope.signature, secret)) return false
+        val perDevice = PairedControllerRegistry.secretForAddress(this, device.address)
+        val secret = perDevice
+            ?: if (PairedControllerRegistry.hasAny(this)) {
+                null
+            } else {
+                AppPrefs.sharedSecret(this)
+            }
+        if (secret == null || !CommandSecurity.verify(payload, envelope.signature, secret)) {
+            DebugLog.append(
+                this,
+                "HOST_CMD",
+                "Signature reject from ${device.address} (per-device: ${perDevice != null}, unknown controller)",
+            )
+            return false
+        }
 
         // Basic replay window plus monotonic timestamp check.
         val now = System.currentTimeMillis()
@@ -421,9 +460,8 @@ class HostBleService : Service() {
         AppPrefs.setPendingPairCode(this, code)
         AppPrefs.setApprovedPairCode(this, null)
         DebugLog.append(this, "HOST_PAIR", "Generated code $code for $deviceAddress")
-        gattServer?.getService(BleProtocol.SERVICE_UUID)
-            ?.getCharacteristic(BleProtocol.PAIRING_CHAR_UUID)
-            ?.value = PairingCodec.encode(listOf("PAIR_ECDH_CODE", code, hostPublicB64))
+        // Characteristic value is set in GATT onCharacteristicWriteRequest from the return string
+        // (avoids a second write path that can throw on some stacks).
         return "PAIR_ECDH_CODE|$code|$hostPublicB64"
     }
 
@@ -447,7 +485,7 @@ class HostBleService : Service() {
             return "PAIR_CONFIRM_NOT_APPROVED"
         }
 
-        AppPrefs.setSharedSecret(this, pending.candidateSecret)
+        PairedControllerRegistry.upsert(this, deviceAddress, pending.candidateSecret)
         AppPrefs.setPendingPairCode(this, null)
         AppPrefs.setApprovedPairCode(this, null)
         AppPrefs.setLastPairedController(this, deviceAddress)
@@ -456,9 +494,6 @@ class HostBleService : Service() {
         persistPendingPairsToDisk()
         DebugLog.append(this, "HOST_PAIR", "Pairing success for $deviceAddress")
         mainHandler.post { doRefreshHostForegroundNotif() }
-        gattServer?.getService(BleProtocol.SERVICE_UUID)
-            ?.getCharacteristic(BleProtocol.PAIRING_CHAR_UUID)
-            ?.value = PairingCodec.encode(listOf("PAIR_ECDH_OK"))
         return "PAIR_ECDH_OK"
     }
 
@@ -477,7 +512,16 @@ class HostBleService : Service() {
     }
 
     private fun doRefreshHostForegroundNotif() {
-        startOrUpdateHostForegroundNotification(buildHostForegroundNotification())
+        val n = runCatching { buildHostForegroundNotification() }
+            .onFailure { t ->
+                DebugLog.append(
+                    this,
+                    "HOST_SVC",
+                    "buildHostForegroundNotification: ${t.javaClass.simpleName} ${t.message}",
+                )
+            }
+            .getOrNull() ?: return
+        startOrUpdateHostForegroundNotification(n)
     }
 
     private fun startOrUpdateHostForegroundNotification(n: Notification) {
@@ -553,8 +597,19 @@ class HostBleService : Service() {
     }
 
     private fun friendlyPairedControllerLine(): String {
-        val addr = AppPrefs.lastPairedController(this)
-        if (addr.isNullOrBlank()) {
+        val entries = PairedControllerRegistry.all(this)
+        if (entries.isEmpty()) {
+            return getString(R.string.notif_host_paired_none)
+        }
+        if (entries.size == 1) {
+            val e = entries[0]
+            return friendlyOneControllerLine(e.address)
+        }
+        return getString(R.string.notif_host_controllers_count, entries.size)
+    }
+
+    private fun friendlyOneControllerLine(addr: String): String {
+        if (addr.isBlank()) {
             return getString(R.string.notif_host_paired_none)
         }
         val name = runCatching {

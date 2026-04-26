@@ -10,7 +10,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.controller.BlePairingClient
 import com.spandan.instanthotspot.controller.PairingStartError
@@ -84,12 +83,9 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
             hint.setText(R.string.ob_pairing_hint_host)
             hostCard.visibility = View.VISIBLE
             ctrlCard.visibility = View.GONE
-            val hostSecret = view.findViewById<TextInputEditText>(R.id.obhSecret)
             val toggle = view.findViewById<MaterialButton>(R.id.obhBtnTogglePair)
             val readv = view.findViewById<MaterialButton>(R.id.obhBtnReadvertise)
             val approve = view.findViewById<MaterialButton>(R.id.obhBtnApprove)
-            view.findViewById<MaterialButton>(R.id.obhSaveSecret).setOnClickListener { saveHostSecret(hostSecret) }
-            view.findViewById<MaterialButton>(R.id.obhShareSecret).setOnClickListener { shareHostPassphrase() }
             toggle.setOnClickListener { toggleHostPairing() }
             readv.setOnClickListener {
                 val ctx = requireContext()
@@ -106,19 +102,6 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
             hint.setText(R.string.ob_pairing_hint_controller)
             hostCard.visibility = View.GONE
             ctrlCard.visibility = View.VISIBLE
-            val obcSecret = view.findViewById<TextInputEditText>(R.id.obcSecret)
-            view.findViewById<MaterialButton>(R.id.obcSaveManual).setOnClickListener {
-                saveControllerManualSecret(obcSecret)
-            }
-            if (obcSecret != null && !obcSecret.isFocused) {
-                obcSecret.setText(
-                    if (AppPrefs.hasNonDefaultSecret(requireContext())) {
-                        AppPrefs.sharedSecret(requireContext())
-                    } else {
-                        ""
-                    },
-                )
-            }
             val start = view.findViewById<MaterialButton>(R.id.obcStart)
             val confirm = view.findViewById<MaterialButton>(R.id.obcConfirm)
             start.setOnClickListener { startPairing(confirm) }
@@ -176,17 +159,6 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
 
     private fun refreshHost() {
         val v = requireView()
-        val secretField = v.findViewById<TextInputEditText>(R.id.obhSecret)
-        val ctx = requireContext()
-        if (secretField != null && !secretField.isFocused) {
-            secretField.setText(
-                if (AppPrefs.hasNonDefaultSecret(ctx)) {
-                    AppPrefs.sharedSecret(ctx)
-                } else {
-                    ""
-                },
-            )
-        }
         val code = AppPrefs.pendingPairCode(requireContext())
         v.findViewById<TextView>(R.id.obhPending).text = if (code.isNullOrBlank()) {
             getString(R.string.pending_code_none)
@@ -222,52 +194,6 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         AppPrefs.setApprovedPairCode(requireContext(), p)
         refreshHost()
         Toast.makeText(requireContext(), R.string.host_code_approved, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun saveHostSecret(sec: TextInputEditText) {
-        val t = sec.text?.toString()?.trim().orEmpty()
-        if (t.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
-            return
-        }
-        AppPrefs.setSharedSecret(requireContext(), t)
-        DebugLog.append(requireContext(), "OB", "Host secret saved in onboarding")
-        Toast.makeText(requireContext(), R.string.secret_saved, Toast.LENGTH_SHORT).show()
-        requireContext().startService(Intent(requireContext(), HostBleService::class.java))
-        refreshHost()
-    }
-
-    /** Same behavior as [com.spandan.instanthotspot.MainActivity.saveManualSecret] for the Pair card. */
-    private fun saveControllerManualSecret(sec: TextInputEditText) {
-        val value = sec.text?.toString()?.trim().orEmpty()
-        if (value.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
-            return
-        }
-        AppPrefs.setSharedSecret(requireContext(), value)
-        AppPrefs.setClientPaired(requireContext(), true)
-        AppPrefs.setLastPairedHost(requireContext(), "manual-secret")
-        AppPrefs.setPairedHostDisplayName(requireContext(), "Manual")
-        DebugLog.append(requireContext(), "OB", "Controller manual/pasted secret in onboarding")
-        updatePairedBanner()
-        Toast.makeText(requireContext(), R.string.manual_pair_saved, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun shareHostPassphrase() {
-        val t = AppPrefs.sharedSecret(requireContext())
-        if (t.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
-            return
-        }
-        startActivity(
-            Intent.createChooser(
-                Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, t)
-                },
-                getString(R.string.host_pairing_title),
-            ),
-        )
     }
 
     private fun startPairing(confirmBtn: MaterialButton) {
@@ -317,8 +243,6 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
                     if (activeSession != null) confirmBtn.isEnabled = true
                     return@runOnUiThread
                 }
-                AppPrefs.setSharedSecret(requireContext(), s.candidateSecret)
-                AppPrefs.setClientPaired(requireContext(), true)
                 activeSession = null
                 requireView().findViewById<TextView>(R.id.obcPairCode).text = getString(R.string.pair_code_none)
                 updatePairedBanner()

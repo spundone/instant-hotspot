@@ -46,7 +46,9 @@ object OnboardingV2 {
         val usedBefore =
             AppPrefs.isClientPaired(context) ||
                 !AppPrefs.lastPairedHost(context).isNullOrBlank() ||
-                !AppPrefs.lastPairedController(context).isNullOrBlank()
+                !AppPrefs.lastPairedController(context).isNullOrBlank() ||
+                PairedControllerRegistry.hasAny(context) ||
+                PairedHostRegistry.hasAny(context)
         if (usedBefore) {
             p.edit()
                 .putInt(KEY_STATE, -1)

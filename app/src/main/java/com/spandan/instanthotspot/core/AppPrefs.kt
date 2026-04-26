@@ -111,6 +111,7 @@ object AppPrefs {
     }
 
     fun isClientPaired(context: Context): Boolean {
+        if (PairedHostRegistry.hasAny(context)) return true
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(KEY_CLIENT_PAIRED, false)
     }
@@ -186,6 +187,7 @@ object AppPrefs {
 
     /** Clears host pairing state, command replay cursor, and sets a new shared secret. */
     fun unpairAsHostWithNewSecret(context: Context, newSecret: String) {
+        PairedControllerRegistry.clear(context)
         setLastPairedController(context, null)
         setHostPairedSinceMs(context, 0L)
         setPendingPairCode(context, null)
@@ -197,8 +199,10 @@ object AppPrefs {
 
     /** Clears controller “paired” state and synced config; resets secret to the default dev placeholder. */
     fun unpairAsController(context: Context) {
+        PairedHostRegistry.clear(context)
         setClientPaired(context, false)
         setLastPairedHost(context, null)
+        setPreferredHostAddress(context, null)
         setPairedHostDisplayName(context, null)
         setLastSyncedHotspotConfig(context, null)
         setLastHostApState(context, HostStateCodec.PREF_UNKNOWN)

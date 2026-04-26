@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.bluetooth.BluetoothManager
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.PathInterpolator
@@ -27,7 +28,6 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.spandan.instanthotspot.main.ControllerMainConsolePagerAdapter
@@ -36,6 +36,9 @@ import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.DebugLog
 import com.spandan.instanthotspot.core.OnboardingV2
 import com.spandan.instanthotspot.onboarding.OnboardingPagerAdapter
+import com.spandan.instanthotspot.core.PairedControllerRegistry
+import com.spandan.instanthotspot.core.PairedHostEntry
+import com.spandan.instanthotspot.core.PairedHostRegistry
 import com.spandan.instanthotspot.core.HotspotCommand
 import com.spandan.instanthotspot.controller.BlePairingClient
 import com.spandan.instanthotspot.controller.CommandSendStatus
@@ -63,15 +66,17 @@ import java.util.concurrent.Executors
 class MainActivity : AppCompatActivity() {
     private var inOnboarding: Boolean = false
     private var useSimpleLayout: Boolean = false
-    private var hostSecretText: TextView? = null
-    private var hostSecretInput: TextInputEditText? = null
     private var hostPendingCodeText: TextView? = null
     private var hostPairingStatusText: TextView? = null
     private var hostRootStatusText: TextView? = null
     private var hostPairedDeviceText: TextView? = null
-    /** Full-console controller field, or [R.id.simpleSecretInput] in simple home. */
-    private var secretInput: EditText? = null
     private var controllerPairCodeText: TextView? = null
+    /** Simple controller home: same pairing flow as full console. */
+    private var simplePairCodeText: TextView? = null
+    private var btnSimpleStartPairing: MaterialButton? = null
+    private var btnSimpleConfirmPairing: MaterialButton? = null
+    private var btnSimpleScanHosts: MaterialButton? = null
+    private var simpleSelectedHostText: TextView? = null
     private var controllerPairedDeviceText: TextView? = null
     private var clientConnectionStatusText: TextView? = null
     private var clientHotspotConfigText: TextView? = null
@@ -81,12 +86,13 @@ class MainActivity : AppCompatActivity() {
     private var hostInstallCompatText: TextView? = null
     private var btnConfirmPairing: Button? = null
     private var btnHostApproveCode: Button? = null
+    /** Approve on Pair tab; [btnHostApproveCode] is on the Hotspot tab. */
+    private var btnHostApproveOnPair: MaterialButton? = null
     private var btnTogglePairingMode: Button? = null
     /** Same action as [btnTogglePairingMode] on the Hotspot tab; always visible on Pair. */
     private var btnHostPairingModeToggle: Button? = null
     private var btnHostReAdvertise: Button? = null
     private var btnStartPairing: Button? = null
-    private var btnSaveManualSecret: Button? = null
     private var btnClientHotspotOn: Button? = null
     private var btnClientHotspotOff: Button? = null
     private var btnClientSyncConfig: Button? = null
@@ -100,6 +106,8 @@ class MainActivity : AppCompatActivity() {
     private var btnUnpairHost: Button? = null
     private var btnUnpairController: Button? = null
     private var switchHostBondAllowlist: MaterialSwitch? = null
+    private var controllerSavedHostsList: ViewGroup? = null
+    private var hostPairedControllersList: ViewGroup? = null
     @Volatile private var activePairingSession: PairingSession? = null
     @Volatile private var pairingStartInProgress = false
     @Volatile private var pairingConfirmInProgress = false
@@ -254,6 +262,18 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, SettingsActivity::class.java))
                     true
                 }
+                R.id.menu_sync_hotspot -> {
+                    syncHotspotConfigToClient()
+                    true
+                }
+                R.id.menu_open_wifi -> {
+                    openWifiWithManualCredentials()
+                    true
+                }
+                R.id.menu_unpair_controller -> {
+                    unpairAsController()
+                    true
+                }
                 R.id.menu_full_console -> {
                     AppPrefs.setUseSimpleHome(this, false)
                     recreate()
@@ -285,8 +305,15 @@ class MainActivity : AppCompatActivity() {
                 R.string.toast_client_hotspot_off_sent,
             )
         }
-        secretInput = findViewById(R.id.simpleSecretInput)
-        findViewById<MaterialButton>(R.id.btnSaveSimpleSecret).setOnClickListener { saveManualSecret() }
+        simplePairCodeText = findViewById(R.id.simplePairCodeText)
+        btnSimpleStartPairing = findViewById(R.id.btnSimpleStartPairing)
+        btnSimpleConfirmPairing = findViewById(R.id.btnSimpleConfirmPairing)
+        btnSimpleScanHosts = findViewById(R.id.btnSimpleScanHosts)
+        simpleSelectedHostText = findViewById(R.id.simpleSelectedHostText)
+        controllerSavedHostsList = findViewById(R.id.controllerSavedHostsList)
+        btnSimpleStartPairing?.setOnClickListener { startPairingHandshake() }
+        btnSimpleConfirmPairing?.setOnClickListener { confirmPairingHandshake() }
+        btnSimpleScanHosts?.setOnClickListener { scanAndSelectNearbyHosts() }
         renderSimpleHome()
     }
 
@@ -300,11 +327,15 @@ class MainActivity : AppCompatActivity() {
             connected -> getString(R.string.client_status_paired_connected)
             else -> getString(R.string.client_status_paired_disconnected)
         }
-        val hasCustom = AppPrefs.hasNonDefaultSecret(this)
-        val secret = AppPrefs.sharedSecret(this)
-        if (secretInput?.text.isNullOrBlank()) {
-            secretInput?.setText(if (hasCustom) secret else "")
+        renderSelectedHostTarget()
+        btnSimpleStartPairing?.isEnabled = !pairingStartInProgress
+        btnSimpleConfirmPairing?.isEnabled = activePairingSession != null && !pairingConfirmInProgress
+        when {
+            activePairingSession != null -> Unit
+            paired -> simplePairCodeText?.text = getString(R.string.controller_pair_add_another_hint)
+            else -> simplePairCodeText?.text = getString(R.string.pair_code_none)
         }
+        rebuildPairedHostRows()
     }
 
     private fun setupFullMain() {
@@ -427,10 +458,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btnCheckForUpdates).setOnClickListener {
             checkForUpdatesWithUi()
         }
-        // Only present in host console (pairing card); host/controller shells use different fragments.
-        findViewById<MaterialButton>(R.id.btnShareHostSecret)?.setOnClickListener {
-            shareHostPassphrase()
-        }
         findViewById<MaterialButton>(R.id.btnTetheringSettings).setOnClickListener {
             AppTooling.openTetheringSettingsIfPossible(this)
         }
@@ -453,6 +480,17 @@ class MainActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btnOpenRemoteTools)?.setOnClickListener {
             showProjectToolsDialog()
         }
+        findViewById<MaterialButton>(R.id.btnUseSimpleHome)?.let { b ->
+            b.visibility = if (currentMode() == MODE_CONTROLLER) View.VISIBLE else View.GONE
+            b.setOnClickListener {
+                AppPrefs.setUseSimpleHome(this, true)
+                recreate()
+            }
+        }
+        findViewById<MaterialButton>(R.id.btnRerunOnboardingTools)?.setOnClickListener {
+            OnboardingV2.resetFlow(this)
+            recreate()
+        }
     }
 
     private fun wireHostMainConsole() {
@@ -462,14 +500,13 @@ class MainActivity : AppCompatActivity() {
         val modeGroup = findViewById<RadioGroup>(R.id.modeGroup)!!
         val host = findViewById<RadioButton>(R.id.radioHost)!!
         val controller = findViewById<RadioButton>(R.id.radioController)!!
-        hostSecretText = findViewById(R.id.hostSecretText)
-        hostSecretInput = findViewById(R.id.hostSecretInput)
-        findViewById<MaterialButton>(R.id.btnSaveHostSecret)?.setOnClickListener { saveHostPassphrase() }
         hostPendingCodeText = findViewById(R.id.hostPendingCodeText)
         hostPairingStatusText = findViewById(R.id.hostPairingStatusText)
         hostRootStatusText = findViewById(R.id.hostRootStatusText)
         hostPairedDeviceText = findViewById(R.id.hostPairedDeviceText)
+        hostPairedControllersList = findViewById(R.id.hostPairedControllersList)
         btnHostApproveCode = findViewById(R.id.btnHostApproveCode)
+        btnHostApproveOnPair = findViewById(R.id.btnHostApproveOnPair)
         btnTogglePairingMode = findViewById(R.id.btnTogglePairingMode)
         btnHostPairingModeToggle = findViewById(R.id.btnHostPairingModeToggle)
         btnHostReAdvertise = findViewById(R.id.btnHostReAdvertise)
@@ -492,6 +529,7 @@ class MainActivity : AppCompatActivity() {
         startService(Intent(this, HostBleService::class.java))
 
         btnHostApproveCode?.setOnClickListener { approveHostPendingCode() }
+        btnHostApproveOnPair?.setOnClickListener { approveHostPendingCode() }
         btnTogglePairingMode?.setOnClickListener { toggleHostPairingMode() }
         btnHostPairingModeToggle?.setOnClickListener { toggleHostPairingMode() }
         btnHostReAdvertise?.setOnClickListener { forceHostReAdvertise() }
@@ -522,9 +560,7 @@ class MainActivity : AppCompatActivity() {
         val modeGroup = findViewById<RadioGroup>(R.id.modeGroup)!!
         val host = findViewById<RadioButton>(R.id.radioHost)!!
         val controller = findViewById<RadioButton>(R.id.radioController)!!
-        secretInput = findViewById(R.id.secretInput)
         btnStartPairing = findViewById(R.id.btnStartPairing)
-        btnSaveManualSecret = findViewById(R.id.btnSaveManualSecret)
         btnConfirmPairing = findViewById(R.id.btnConfirmPairing)
         controllerPairCodeText = findViewById(R.id.controllerPairCodeText)
         controllerPairedDeviceText = findViewById(R.id.controllerPairedDeviceText)
@@ -535,6 +571,7 @@ class MainActivity : AppCompatActivity() {
         btnClientHotspotOff = findViewById(R.id.btnClientHotspotOff)
         btnClientSyncConfig = findViewById(R.id.btnClientSyncConfig)
         btnScanNearbyHosts = findViewById(R.id.btnScanNearbyHosts)
+        controllerSavedHostsList = findViewById(R.id.controllerSavedHostsList)
         btnOpenWifiWithManual = findViewById(R.id.btnOpenWifiWithManual)
         controllerSelectedHostText = findViewById(R.id.controllerSelectedHostText)
         manualSsidInput = findViewById(R.id.manualSsidInput)
@@ -549,7 +586,6 @@ class MainActivity : AppCompatActivity() {
         applyModeUi(MODE_CONTROLLER)
 
         btnStartPairing?.setOnClickListener { startPairingHandshake() }
-        btnSaveManualSecret?.setOnClickListener { saveManualSecret() }
         btnConfirmPairing?.setOnClickListener { confirmPairingHandshake() }
         btnClientHotspotOn?.setOnClickListener {
             sendClientHotspotCommand(HotspotCommand.HOTSPOT_ON, "HOTSPOT_ON", R.string.toast_client_hotspot_on_sent)
@@ -564,10 +600,6 @@ class MainActivity : AppCompatActivity() {
         btnUnpairController?.setOnClickListener { unpairAsController() }
         wireProjectAndToolsButtons()
 
-        secretInput?.setOnEditorActionListener { _, _, _ ->
-            saveManualSecret()
-            true
-        }
         modeGroup.setOnCheckedChangeListener { _, checkedId ->
             val mode = if (checkedId == R.id.radioHost) MODE_HOST else MODE_CONTROLLER
             val prev = prefs.getString(KEY_MODE, MODE_CONTROLLER) ?: MODE_CONTROLLER
@@ -611,6 +643,8 @@ class MainActivity : AppCompatActivity() {
         }
         if (useSimpleLayout) {
             renderSimpleHome()
+            uiHandler.removeCallbacks(statusRefreshRunnable)
+            uiHandler.post(statusRefreshRunnable)
             return
         }
         applyVerboseUi(AppPrefs.isVerboseDebugEnabled(this))
@@ -688,12 +722,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderHostMainStatus() {
         refreshHostInstallCompat()
-        val secret = AppPrefs.sharedSecret(this)
-        val hasCustom = AppPrefs.hasNonDefaultSecret(this)
-        hostSecretText?.text = if (hasCustom) secret else getString(R.string.pairing_not_set)
-        if (hostSecretInput?.text.isNullOrBlank()) {
-            hostSecretInput?.setText(if (hasCustom) secret else "")
-        }
         val pending = AppPrefs.pendingPairCode(this)
         hostPendingCodeText?.text = if (pending.isNullOrBlank()) {
             getString(R.string.pending_code_none)
@@ -701,7 +729,9 @@ class MainActivity : AppCompatActivity() {
             "Pending code: $pending"
         }
         val approved = AppPrefs.approvedPairCode(this)
-        btnHostApproveCode?.isEnabled = !pending.isNullOrBlank() && pending != approved
+        val canApprove = !pending.isNullOrBlank() && pending != approved
+        btnHostApproveCode?.isEnabled = canApprove
+        btnHostApproveOnPair?.isEnabled = canApprove
         val serviceActive = AppPrefs.isHostServiceActive(this)
         val pairingModeEnabled = AppPrefs.isPairingModeEnabled(this)
         hostPairingStatusText?.text = when {
@@ -721,19 +751,19 @@ class MainActivity : AppCompatActivity() {
         }
         btnTogglePairingMode?.text = pairingBtnText
         btnHostPairingModeToggle?.text = pairingBtnText
+        val registryCount = PairedControllerRegistry.all(this).size
         val pairedController = AppPrefs.lastPairedController(this)
-        hostPairedDeviceText?.text = if (pairedController.isNullOrBlank()) {
-            getString(R.string.host_paired_device_none)
-        } else {
-            getString(R.string.host_paired_device_value, pairedController)
+        hostPairedDeviceText?.text = when {
+            registryCount == 0 && pairedController.isNullOrBlank() -> getString(R.string.host_paired_device_none)
+            registryCount > 0 -> getString(R.string.host_paired_controllers_count_line, registryCount)
+            else -> getString(R.string.host_paired_device_value, pairedController!!)
         }
+        rebuildPairedControllerRows()
         val debug = DebugLog.read(this)
         hostDebugLogText?.text = debug
     }
 
     private fun renderControllerMainStatus() {
-        val secret = AppPrefs.sharedSecret(this)
-        val hasCustom = AppPrefs.hasNonDefaultSecret(this)
         btnStartPairing?.isEnabled = !pairingStartInProgress
         btnConfirmPairing?.isEnabled = activePairingSession != null && !pairingConfirmInProgress
         val paired = AppPrefs.isClientPaired(this)
@@ -747,9 +777,6 @@ class MainActivity : AppCompatActivity() {
         btnClientHotspotOn?.isEnabled = paired && !pairingStartInProgress && !pairingConfirmInProgress
         btnClientHotspotOff?.isEnabled = paired && !pairingStartInProgress && !pairingConfirmInProgress
         btnClientSyncConfig?.isEnabled = paired && !pairingStartInProgress && !pairingConfirmInProgress
-        if (paired && !pairingStartInProgress && activePairingSession == null) {
-            btnStartPairing?.isEnabled = false
-        }
         val savedConfig = AppPrefs.lastSyncedHotspotConfig(this)
         clientHotspotConfigText?.text = if (savedConfig.isNullOrBlank()) {
             getString(R.string.client_hotspot_config_empty)
@@ -767,15 +794,89 @@ class MainActivity : AppCompatActivity() {
             }
         }
         renderSelectedHostTarget()
-        if (paired) {
-            controllerPairCodeText?.text = getString(R.string.already_paired_once)
-        } else if (activePairingSession == null) {
-            controllerPairCodeText?.text = getString(R.string.pair_code_none)
+        when {
+            activePairingSession != null -> Unit
+            paired -> controllerPairCodeText?.text = getString(R.string.controller_pair_add_another_hint)
+            else -> controllerPairCodeText?.text = getString(R.string.pair_code_none)
         }
         val debug = DebugLog.read(this)
         controllerDebugLogText?.text = debug
-        if (secretInput?.text.isNullOrBlank()) {
-            secretInput?.setText(if (hasCustom) secret else "")
+        rebuildPairedHostRows()
+    }
+
+    private fun applyActivePairedHost(entry: PairedHostEntry) {
+        AppPrefs.setPreferredHostAddress(this, entry.address)
+        AppPrefs.setLastPairedHost(this, entry.address)
+        AppPrefs.setPairedHostDisplayName(this, entry.displayName)
+        AppPrefs.setSharedSecret(this, entry.secret)
+        renderSelectedHostTarget()
+        renderCurrentSecret()
+        HotspotWidgetProvider.requestUpdateAll(this)
+    }
+
+    private fun removePairedHostEntry(address: String) {
+        val preferred = AppPrefs.preferredHostAddress(this)
+        val last = AppPrefs.lastPairedHost(this)
+        PairedHostRegistry.remove(this, address)
+        val rest = PairedHostRegistry.all(this)
+        if (rest.isEmpty()) {
+            AppPrefs.unpairAsController(this)
+        } else if (address.equals(preferred, ignoreCase = true) || address.equals(last, ignoreCase = true)) {
+            applyActivePairedHost(rest.maxBy { it.pairedAtMs })
+        } else {
+            renderCurrentSecret()
+        }
+        HotspotWidgetProvider.requestUpdateAll(this)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun rebuildPairedControllerRows() {
+        val container = hostPairedControllersList ?: return
+        container.removeAllViews()
+        val infl = layoutInflater
+        for (e in PairedControllerRegistry.all(this)) {
+            val row = infl.inflate(R.layout.item_paired_controller_row, container, false)
+            val name = runCatching {
+                getSystemService(BluetoothManager::class.java)?.adapter?.getRemoteDevice(e.address)?.name
+            }.getOrNull()?.trim()
+            val line = if (name.isNullOrBlank()) e.address else "$name · ${e.address}"
+            row.findViewById<TextView>(R.id.pairedControllerLine).text = line
+            row.findViewById<MaterialButton>(R.id.btnControllerRowRemove).setOnClickListener {
+                removePairedControllerEntry(e.address)
+            }
+            container.addView(row)
+        }
+    }
+
+    private fun removePairedControllerEntry(address: String) {
+        PairedControllerRegistry.remove(this, address)
+        if (!PairedControllerRegistry.hasAny(this)) {
+            AppPrefs.setLastPairedController(this, null)
+        }
+        renderCurrentSecret()
+    }
+
+    private fun rebuildPairedHostRows() {
+        val container = controllerSavedHostsList ?: return
+        container.removeAllViews()
+        val entries = PairedHostRegistry.all(this)
+        if (entries.isEmpty()) return
+        val infl = layoutInflater
+        val activePref = AppPrefs.preferredHostAddress(this)
+        val activeLast = AppPrefs.lastPairedHost(this)
+        for (e in entries) {
+            val row = infl.inflate(R.layout.item_paired_host_row, container, false)
+            row.findViewById<TextView>(R.id.pairedHostTitle).text = e.displayName ?: e.address
+            row.findViewById<TextView>(R.id.pairedHostAddress).text = e.address
+            val isActive = (activePref != null && e.address.equals(activePref, ignoreCase = true)) ||
+                (activeLast != null && e.address.equals(activeLast, ignoreCase = true) && activePref == null)
+            val useBtn = row.findViewById<MaterialButton>(R.id.btnHostRowUse)
+            useBtn.isEnabled = !isActive
+            useBtn.setOnClickListener { applyActivePairedHost(e) }
+            row.findViewById<MaterialButton>(R.id.btnHostRowRemove).setOnClickListener {
+                removePairedHostEntry(e.address)
+            }
+            container.addView(row)
         }
     }
 
@@ -874,12 +975,15 @@ class MainActivity : AppCompatActivity() {
         pairingStartInProgress = true
         btnStartPairing?.isEnabled = false
         btnConfirmPairing?.isEnabled = false
+        btnSimpleStartPairing?.isEnabled = false
+        btnSimpleConfirmPairing?.isEnabled = false
         backgroundExecutor.execute {
             val result = BlePairingClient.startPairing(this)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 pairingStartInProgress = false
                 btnStartPairing?.isEnabled = true
+                btnSimpleStartPairing?.isEnabled = true
                 val session = result.session
                 if (session == null) {
                     val msg = when (result.error) {
@@ -895,40 +999,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 activePairingSession = session
                 DebugLog.append(this, "CTRL_UI", "Pairing code received: ${session.code}")
-                controllerPairCodeText?.text = "Controller code: ${session.code}"
+                val line = "Controller code: ${session.code}"
+                controllerPairCodeText?.text = line
+                simplePairCodeText?.text = line
                 btnConfirmPairing?.isEnabled = true
+                btnSimpleConfirmPairing?.isEnabled = true
                 Toast.makeText(this, getString(R.string.pairing_started), Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun saveManualSecret() {
-        val value = secretInput?.text?.toString()?.trim().orEmpty()
-        if (value.isEmpty()) {
-            DebugLog.append(this, "CTRL_UI", "Manual/local pair rejected: empty secret")
-            Toast.makeText(this, getString(R.string.secret_empty), Toast.LENGTH_SHORT).show()
-            return
-        }
-        AppPrefs.setSharedSecret(this, value)
-        AppPrefs.setClientPaired(this, true)
-        AppPrefs.setLastPairedHost(this, "manual-secret")
-        AppPrefs.setPairedHostDisplayName(this, "Manual")
-        DebugLog.append(this, "CTRL_UI", "Manual/local pair applied with pasted secret")
-        renderCurrentSecret()
-        Toast.makeText(this, getString(R.string.manual_pair_saved), Toast.LENGTH_SHORT).show()
-    }
-
-    private fun saveHostPassphrase() {
-        val value = hostSecretInput?.text?.toString()?.trim().orEmpty()
-        if (value.isEmpty()) {
-            Toast.makeText(this, getString(R.string.secret_empty), Toast.LENGTH_SHORT).show()
-            return
-        }
-        AppPrefs.setSharedSecret(this, value)
-        startService(Intent(this, HostBleService::class.java))
-        DebugLog.append(this, "HOST_UI", "Host pairing passphrase set from main console")
-        renderCurrentSecret()
-        Toast.makeText(this, R.string.host_passphrase_updated, Toast.LENGTH_SHORT).show()
     }
 
     private fun confirmPairingHandshake() {
@@ -942,6 +1020,7 @@ class MainActivity : AppCompatActivity() {
         if (pairingConfirmInProgress || pairingStartInProgress) return
         pairingConfirmInProgress = true
         btnConfirmPairing?.isEnabled = false
+        btnSimpleConfirmPairing?.isEnabled = false
         backgroundExecutor.execute {
             val ok = BlePairingClient.confirmPairing(this, session)
             runOnUiThread {
@@ -950,16 +1029,14 @@ class MainActivity : AppCompatActivity() {
                 if (!ok) {
                     DebugLog.append(this, "CTRL_UI", "Pairing confirm failed at host")
                     btnConfirmPairing?.isEnabled = activePairingSession != null
+                    btnSimpleConfirmPairing?.isEnabled = activePairingSession != null
                     Toast.makeText(this, getString(R.string.pairing_confirm_failed), Toast.LENGTH_SHORT).show()
                     return@runOnUiThread
                 }
-                AppPrefs.setSharedSecret(this, session.candidateSecret)
-                AppPrefs.setClientPaired(this, true)
-                renderCurrentSecret()
                 activePairingSession = null
+                renderCurrentSecret()
                 HotspotWidgetProvider.requestUpdateAll(this)
                 DebugLog.append(this, "CTRL_UI", "Pairing confirmed successfully")
-                controllerPairCodeText?.text = getString(R.string.pair_code_none)
                 Toast.makeText(this, getString(R.string.pairing_confirmed), Toast.LENGTH_SHORT).show()
             }
         }
@@ -1045,19 +1122,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.controllerLogVerboseOffHint)?.visibility = off
     }
 
-    private fun shareHostPassphrase() {
-        val s = AppPrefs.sharedSecret(this)
-        if (s.isBlank()) {
-            Toast.makeText(this, getString(R.string.secret_empty), Toast.LENGTH_SHORT).show()
-            return
-        }
-        val send = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, s)
-        }
-        startActivity(Intent.createChooser(send, getString(R.string.host_pairing_title)))
-    }
-
     private fun formatHotspotConfigForDisplay(raw: String): String {
         val t = raw.trim()
         if (t.isEmpty()) return getString(R.string.client_hotspot_config_empty)
@@ -1091,20 +1155,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderSelectedHostTarget() {
         val selected = AppPrefs.preferredHostAddress(this)
-        controllerSelectedHostText?.text = if (selected.isNullOrBlank()) {
+        val line = if (selected.isNullOrBlank()) {
             getString(R.string.preferred_host_none)
         } else {
             getString(R.string.preferred_host_value, selected)
         }
+        controllerSelectedHostText?.text = line
+        simpleSelectedHostText?.text = line
     }
 
     private fun scanAndSelectNearbyHosts() {
+        if (PairedHostRegistry.hasAny(this)) {
+            showSavedHostPickerDialog()
+            return
+        }
         btnScanNearbyHosts?.isEnabled = false
+        btnSimpleScanHosts?.isEnabled = false
         Toast.makeText(this, getString(R.string.scan_hosts_working), Toast.LENGTH_SHORT).show()
         backgroundExecutor.execute {
             val hosts = ControllerCommandSender.scanNearbyHosts(this)
             runOnUiThread {
                 btnScanNearbyHosts?.isEnabled = true
+                btnSimpleScanHosts?.isEnabled = true
                 if (hosts.isEmpty()) {
                     Toast.makeText(this, getString(R.string.scan_hosts_none_found), Toast.LENGTH_SHORT).show()
                     return@runOnUiThread
@@ -1112,6 +1184,28 @@ class MainActivity : AppCompatActivity() {
                 showHostPickerDialog(hosts)
             }
         }
+    }
+
+    private fun showSavedHostPickerDialog() {
+        val entries = PairedHostRegistry.all(this)
+        if (entries.isEmpty()) return
+        val labels = entries.map { e ->
+            val n = e.displayName?.takeIf { it.isNotBlank() } ?: e.address
+            "$n\n${e.address}"
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.scan_hosts_pick_title)
+            .setItems(labels) { _, which ->
+                val chosen = entries.getOrNull(which) ?: return@setItems
+                applyActivePairedHost(chosen)
+                Toast.makeText(
+                    this,
+                    getString(R.string.scan_hosts_selected, chosen.address),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showHostPickerDialog(hosts: List<HostDeviceSummary>) {

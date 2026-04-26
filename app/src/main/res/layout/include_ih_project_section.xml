@@ -91,6 +91,23 @@
                 android:text="@string/main_menu_settings" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUseSimpleHome"
+                style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/tools_simple_home"
+                android:visibility="gone" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRerunOnboardingTools"
+                style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/main_menu_rerun_onboarding" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCheckForUpdates"
                 style="@style/Widget.InstantHotspot.Button.Expressive"
                 android:layout_width="match_parent"

@@ -25,6 +25,11 @@ class SettingsActivity : AppCompatActivity() {
         sw.setOnCheckedChangeListener { _, enabled ->
             AppPrefs.setVerboseDebugEnabled(this, enabled)
         }
+        val swSimple = findViewById<MaterialSwitch>(R.id.switchSettingsSimpleHome)
+        swSimple.isChecked = AppPrefs.useSimpleHome(this)
+        swSimple.setOnCheckedChangeListener { _, useSimple ->
+            AppPrefs.setUseSimpleHome(this, useSimple)
+        }
         findViewById<MaterialButton>(R.id.btnSettingsRerunOnboarding).setOnClickListener {
             OnboardingV2.resetFlow(this)
             startActivity(

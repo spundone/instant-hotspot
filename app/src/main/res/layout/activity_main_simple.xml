@@ -124,28 +124,64 @@
                     android:text="@string/simple_pairing_body"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                <TextView
+                    style="@style/TextAppearance.Material3.TitleSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/pair_section_saved_hosts" />
+
+                <LinearLayout
+                    android:id="@+id/controllerSavedHostsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="vertical" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSimpleScanHosts"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:hint="@string/pairing_secret_hint">
+                    android:text="@string/scan_nearby_hosts" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/simpleSecretInput"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textNoSuggestions"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
+                <TextView
+                    android:id="@+id/simpleSelectedHostText"
+                    style="@style/TextAppearance.Material3.BodySmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSaveSimpleSecret"
-                    style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
+                    android:id="@+id/btnSimpleStartPairing"
+                    style="@style/Widget.InstantHotspot.Button.Expressive"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/start_nearby_pairing" />
+
+                <TextView
+                    android:id="@+id/simplePairCodeText"
+                    style="@style/Widget.IH.PairCodeDisplay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_status_pill"
+                    android:gravity="center"
+                    android:minHeight="@dimen/ih_pair_code_min_height"
+                    android:padding="12dp"
+                    android:text="@string/pair_code_none" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSimpleConfirmPairing"
+                    style="@style/Widget.InstantHotspot.Button.Expressive"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="@string/manual_pair_save" />
+                    android:enabled="false"
+                    android:text="@string/confirm_pairing" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

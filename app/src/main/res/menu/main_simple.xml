@@ -6,6 +6,18 @@
         android:title="@string/main_menu_settings"
         app:showAsAction="never" />
     <item
+        android:id="@+id/menu_sync_hotspot"
+        android:title="@string/client_sync_hotspot_config"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_open_wifi"
+        android:title="@string/open_wifi_with_manual"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_unpair_controller"
+        android:title="@string/unpair_or_reset_controller"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/menu_full_console"
         android:title="@string/main_menu_full_console"
         app:showAsAction="never" />

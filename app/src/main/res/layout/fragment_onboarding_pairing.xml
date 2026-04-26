@@ -58,55 +58,6 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
-                    app:cardCornerRadius="@dimen/ih_pair_block_radius"
-                    app:cardElevation="0dp"
-                    app:strokeWidth="0dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/obhSecretLayout"
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="@string/pairing_secret_hint"
-                            app:boxStrokeColor="?attr/colorPrimary">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/obhSecret"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:gravity="top"
-                                android:inputType="textNoSuggestions|textVisiblePassword|textMultiLine"
-                                android:minLines="2" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/obhSaveSecret"
-                            style="@style/Widget.InstantHotspot.Button.Expressive"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="@string/ob_host_onboarding_save_secret" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/obhShareSecret"
-                            style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="@string/share_host_passphrase" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
                 <TextView
                     style="@style/TextAppearance.Material3.BodySmall"
                     android:layout_width="match_parent"
@@ -212,59 +163,6 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="1dp"
-                        android:layout_weight="1"
-                        android:background="?attr/colorOutlineVariant" />
-
-                    <TextView
-                        style="@style/TextAppearance.Material3.LabelMedium"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingStart="10dp"
-                        android:paddingEnd="10dp"
-                        android:text="@string/pair_divider_or"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="1dp"
-                        android:layout_weight="1"
-                        android:background="?attr/colorOutlineVariant" />
-                </LinearLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:hint="@string/pairing_secret_hint"
-                    app:boxStrokeColor="?attr/colorPrimary">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/obcSecret"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="top"
-                        android:inputType="textNoSuggestions|textVisiblePassword|textMultiLine"
-                        android:minLines="2" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/obcSaveManual"
-                    style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/manual_pair_save" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>

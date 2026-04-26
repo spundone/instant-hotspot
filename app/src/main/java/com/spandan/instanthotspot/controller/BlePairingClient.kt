@@ -17,6 +17,7 @@ import android.os.ParcelUuid
 import android.os.SystemClock
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.BleProtocol
+import com.spandan.instanthotspot.core.PairedHostRegistry
 import com.spandan.instanthotspot.core.DebugLog
 import com.spandan.instanthotspot.core.PairingCrypto
 import com.spandan.instanthotspot.core.PairingCodec
@@ -108,13 +109,22 @@ object BlePairingClient {
         DebugLog.append(context, "CTRL_PAIR", "Confirm response: ${parts.joinToString("|").take(120)}")
         val ok = parts.isNotEmpty() && parts[0] == "PAIR_ECDH_OK"
         if (ok) {
-            AppPrefs.markHostReachableNow(context)
-            AppPrefs.setLastPairedHost(context, host.address)
             val label = runCatching { host.name }
                 .getOrNull()
                 ?.trim()
                 ?.takeIf { it.isNotBlank() }
+            PairedHostRegistry.upsert(
+                context = context,
+                address = host.address,
+                secret = session.candidateSecret,
+                displayName = label,
+            )
+            AppPrefs.setSharedSecret(context, session.candidateSecret)
+            AppPrefs.setLastPairedHost(context, host.address)
+            AppPrefs.setPreferredHostAddress(context, host.address)
             AppPrefs.setPairedHostDisplayName(context, label)
+            AppPrefs.setClientPaired(context, true)
+            AppPrefs.markHostReachableNow(context)
         }
         return ok
     }

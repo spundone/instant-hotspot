@@ -1,12 +1,16 @@
 package com.spandan.instanthotspot.onboarding
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
@@ -24,6 +28,12 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
     private var backgroundExecutor: ExecutorService? = null
     @Volatile
     private var snapshotGeneration: Long = 0L
+
+    companion object {
+        private const val TAG = "OnboardingNetwork"
+        /** Avoid TransactionTooLargeException when sharing via Intent. */
+        private const val MAX_SHARE_TEXT_CHARS = 100_000
+    }
     private val hostRefresh = object : Runnable {
         override fun run() {
             if (isResumed && isHost()) {
@@ -55,7 +65,7 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
             title.setText(R.string.ob_network_page_title_host)
             hostCard.visibility = View.VISIBLE
             controllerNote.visibility = View.GONE
-            view.findViewById<MaterialButton>(R.id.obHostShareNetwork).setOnClickListener { shareHostSnapshot() }
+            view.findViewById<MaterialButton>(R.id.obHostShareNetwork)?.setOnClickListener { shareHostSnapshot() }
             refreshHostNetworkSnapshot()
         } else {
             title.setText(R.string.ob_network_page_title_controller)
@@ -107,13 +117,28 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
         append(HostCompatSummary.build(ctx))
     }
 
+    private fun truncateForIntentShare(text: String): String {
+        if (text.length <= MAX_SHARE_TEXT_CHARS) return text
+        return text.substring(0, MAX_SHARE_TEXT_CHARS) +
+            "\n\n…(truncated for share; " + (text.length - MAX_SHARE_TEXT_CHARS) + " chars omitted)"
+    }
+
     private fun refreshHostNetworkSnapshot() {
         val v = view ?: return
         val out = v.findViewById<TextView>(R.id.obHostNetworkDetail) ?: return
-        val appCtx = requireContext().applicationContext
+        // Use the host Activity context: package features (install source, su, Bluetooth) are
+        // not guaranteed safe with applicationContext on all OEMs/threads.
+        val snapshotCtx: Context = requireContext()
         val gen = ++snapshotGeneration
         backgroundExecutor?.execute {
-            val text = buildHostHotspotSnapshotText(appCtx)
+            val text = runCatching { buildHostHotspotSnapshotText(snapshotCtx) }
+                .onFailure { t -> Log.w(TAG, "refreshHostNetworkSnapshot", t) }
+                .getOrElse { t ->
+                    snapshotCtx.getString(
+                        R.string.ob_network_snapshot_error,
+                        t.message?.take(200) ?: t.javaClass.simpleName,
+                    )
+                }
             handler.post {
                 if (!isResumed) return@post
                 if (gen != snapshotGeneration) return@post
@@ -123,21 +148,40 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
     }
 
     private fun shareHostSnapshot() {
-        val appCtx = requireContext().applicationContext
+        if (!isAdded) return
+        // Snapshot and share must not hold an Activity across rotation; re-read on main in handler.
+        val snapshotCtx: Context = requireContext()
+        val chooserTitle = getString(R.string.ob_network_page_title_host)
         backgroundExecutor?.execute {
-            val text = buildHostHotspotSnapshotText(appCtx)
-            if (text.isBlank()) return@execute
+            val text = runCatching { buildHostHotspotSnapshotText(snapshotCtx) }
+                .onFailure { t -> Log.w(TAG, "shareHostSnapshot build", t) }
+                .getOrElse { t ->
+                    snapshotCtx.getString(
+                        R.string.ob_network_snapshot_error,
+                        t.message?.take(200) ?: t.javaClass.simpleName,
+                    )
+                }
+            val toShare = truncateForIntentShare(text)
+            if (toShare.isBlank()) return@execute
             handler.post {
-                if (!isResumed) return@post
-                startActivity(
-                    Intent.createChooser(
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, text)
-                        },
-                        getString(R.string.ob_network_page_title_host),
-                    ),
-                )
+                if (!isResumed || !isAdded) return@post
+                val act: Activity? = activity
+                if (act == null || act.isFinishing) return@post
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, toShare)
+                }
+                val chooser = Intent.createChooser(send, chooserTitle)
+                runCatching {
+                    act.startActivity(chooser)
+                }.onFailure { t ->
+                    Log.e(TAG, "startActivity(share)", t)
+                    val msg = when (t) {
+                        is ActivityNotFoundException -> getString(R.string.ob_network_share_no_handler)
+                        else -> t.message ?: t.javaClass.simpleName
+                    }
+                    Toast.makeText(act, msg, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }

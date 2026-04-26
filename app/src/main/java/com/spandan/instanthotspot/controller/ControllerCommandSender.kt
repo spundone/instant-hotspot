@@ -20,6 +20,7 @@ import android.os.SystemClock
 import android.widget.Toast
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.BleProtocol
+import com.spandan.instanthotspot.core.PairedHostRegistry
 import com.spandan.instanthotspot.core.CommandCodec
 import com.spandan.instanthotspot.core.CommandEnvelope
 import com.spandan.instanthotspot.core.CommandSecurity
@@ -267,7 +268,7 @@ object ControllerCommandSender {
                 val now = System.currentTimeMillis()
                 val nonce = UUID.randomUUID().toString().take(12)
                 val payload = CommandCodec.payload(command, now, nonce)
-                val secret = AppPrefs.sharedSecret(context)
+                val secret = PairedHostRegistry.activeSecret(context) ?: AppPrefs.sharedSecret(context)
                 val signature = CommandSecurity.sign(payload, secret)
                 val envelope = CommandEnvelope(command, now, nonce, signature)
                 val bytes = CommandCodec.encode(envelope)
@@ -305,7 +306,7 @@ object ControllerCommandSender {
                         val now = System.currentTimeMillis()
                         val nonce = UUID.randomUUID().toString().take(12)
                         val payload = CommandCodec.payload(command, now, nonce)
-                        val secret = AppPrefs.sharedSecret(context)
+                        val secret = PairedHostRegistry.activeSecret(context) ?: AppPrefs.sharedSecret(context)
                         val signature = CommandSecurity.sign(payload, secret)
                         val envelope = CommandEnvelope(command, now, nonce, signature)
                         val bytes = CommandCodec.encode(envelope)
