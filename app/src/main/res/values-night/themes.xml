@@ -1,14 +1,21 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.InstantHotspot" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/brand_accent</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorPrimaryContainer">#1A0099FF</item>
+        <item name="colorOnPrimaryContainer">#CCE6FF</item>
+        <item name="colorSecondary">@color/brand_accent</item>
         <item name="android:statusBarColor" tools:targetApi="l">#000000</item>
         <item name="android:navigationBarColor" tools:targetApi="o_mr1">#000000</item>
         <item name="android:windowBackground">#000000</item>
         <item name="colorSurface">#000000</item>
-        <item name="colorSurfaceContainer">#000000</item>
-        <item name="colorSurfaceContainerLow">#000000</item>
-        <item name="colorSurfaceContainerHigh">#080808</item>
+        <item name="colorSurfaceContainer">#0A0A0A</item>
+        <item name="colorSurfaceContainerLow">#0C0C0C</item>
+        <item name="colorSurfaceContainerHigh">#12151A</item>
         <item name="colorOnSurface">#FFFFFF</item>
-        <item name="colorOnSurfaceVariant">#BDBDBD</item>
+        <item name="colorOnSurfaceVariant">#B0B0B0</item>
+        <item name="colorOutline">@color/brand_stroke</item>
+        <item name="colorOutlineVariant">#22FFFFFF</item>
         <item name="materialCardViewStyle">@style/Widget.Material3.CardView.Filled</item>
     </style>
 </resources>

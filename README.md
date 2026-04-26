@@ -31,6 +31,18 @@ Android app scaffold for controlling hotspot on a rooted primary phone from a se
 - `app/src/main/java/com/spandan/instanthotspot/tile/HotspotTileService.kt` - Quick Settings tile
 - `app/src/main/java/com/spandan/instanthotspot/widget/HotspotWidgetProvider.kt` - widget trigger
 
+## Magisk (or system) module on the host
+
+Sideloaded or debug builds **must** be able to hold **TETHER_PRIVILEGED** for the in-process
+[tethering API](https://developer.android.com/reference/android/net/TetheringManager) to work
+reliably (that’s what the app and the Quick Settings tile use). The practical way to get that
+on a custom ROM / root setup is the **module in `module/`** (see `module/README.md`): it installs
+this package under `system/priv-app` with the right allowlist. **Without it, remote ON/OFF and the
+tile may fail** even if basic `cmd` or `ndc` shell invocations work sometimes.
+
+A **true `priv-app` or OEM-integrated** install is the other supported path. Root alone does not
+replace the privileged application signature/allowlist model for `TETHER_PRIVILEGED`.
+
 ## Open in Android Studio
 
 1. Open this folder as a project.
@@ -41,7 +53,7 @@ Android app scaffold for controlling hotspot on a rooted primary phone from a se
 
 This repo includes the **Gradle wrapper** (`gradlew`, `gradlew.bat`, `gradle/wrapper/`). You still need a **JDK** and the **Android SDK**; Studio is not required.
 
-1. **JDK**: Use **JDK 17** (recommended for Android Gradle Plugin 8.5.x). This project’s `sourceCompatibility` / `jvmTarget` is 17.
+1. **JDK**: Use **JDK 17** or **JDK 21** to **run** Gradle. Android Gradle Plugin 8.5.x does not test against very new runtimes, and **Gradle 8.7 (this repo) does not run on JDK 25+**; if the only “error” is a bare line like `25.0.2`, that is your `java` version. Point `JAVA_HOME` at 17/21, for example: `export JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || /usr/libexec/java_home -v 21)"` on macOS. This project’s `sourceCompatibility` / `jvmTarget` is 17.
 2. **Set `ANDROID_HOME`** to your SDK root, for example on macOS: `export ANDROID_HOME="$HOME/Library/Android/sdk"` (adjust if your SDK is elsewhere).
 3. **Install SDK components** with `sdkmanager` (from command-line tools), for example: API **35** platform and **Build-Tools 35.x** to match `compileSdk 35` / `targetSdk 35` in `app/build.gradle.kts`. Accept licenses: `yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses` (path may differ slightly by install).
 4. **Build a debug APK** from the project root:
@@ -51,6 +63,10 @@ This repo includes the **Gradle wrapper** (`gradlew`, `gradlew.bat`, `gradle/wra
 ```
 
 The APK is written under `app/build/outputs/apk/debug/`. Install with `adb install -r` if needed.
+
+### If Gradle fails with only a version number (e.g. `25.0.2`)
+
+That string is almost always the **JVM** Gradle is using. **Gradle 8.7** cannot run the build on **JDK 25**; you need a supported JDK to launch Gradle (see JDK step above) or a future upgrade of the wrapper to **Gradle 9.1+** together with a compatible Android Gradle plugin.
 
 ## Next implementation steps
 

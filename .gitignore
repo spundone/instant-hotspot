@@ -6,4 +6,7 @@
 /captures/
 .DS_Store
 app/build/
+tethering-impl/build/
+tethering-stub/build/
 .cursor/
+artifacts/

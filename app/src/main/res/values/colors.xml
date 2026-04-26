@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_accent">#0099FF</color>
+    <color name="brand_accent_muted">#26FFFFFF</color>
+    <color name="brand_surface_raised">#0F1216</color>
+    <color name="brand_stroke">#33FFFFFF</color>
+</resources>

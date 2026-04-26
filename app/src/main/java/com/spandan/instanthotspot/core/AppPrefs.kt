@@ -15,6 +15,7 @@ object AppPrefs {
     private const val KEY_LAST_SYNCED_HOTSPOT_CONFIG = "last_synced_hotspot_config"
     private const val KEY_LAST_PAIRED_HOST = "last_paired_host"
     private const val KEY_LAST_PAIRED_CONTROLLER = "last_paired_controller"
+    private const val KEY_LAST_AP_STATE = "last_ap_state_line"
 
     // Replace with pairing-generated secret in the next milestone.
     private const val DEFAULT_DEV_SECRET = "change-me-before-production"
@@ -130,7 +131,7 @@ object AppPrefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LAST_SYNCED_HOTSPOT_CONFIG, config)
-            .apply()
+            .commit()
     }
 
     fun lastPairedHost(context: Context): String? {
@@ -155,5 +156,34 @@ object AppPrefs {
             .edit()
             .putString(KEY_LAST_PAIRED_CONTROLLER, controllerId)
             .apply()
+    }
+
+    fun setLastApStateLine(context: Context, line: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_AP_STATE, line)
+            .apply()
+    }
+
+    fun lastApStateLine(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_LAST_AP_STATE, null)
+    }
+
+    /** Clears host pairing state, command replay cursor, and sets a new shared secret. */
+    fun unpairAsHostWithNewSecret(context: Context, newSecret: String) {
+        setLastPairedController(context, null)
+        setPendingPairCode(context, null)
+        setApprovedPairCode(context, null)
+        setLastAcceptedTimestamp(context, 0L)
+        setSharedSecret(context, newSecret)
+    }
+
+    /** Clears controller “paired” state and synced config; resets secret to the default dev placeholder. */
+    fun unpairAsController(context: Context) {
+        setClientPaired(context, false)
+        setLastPairedHost(context, null)
+        setLastSyncedHotspotConfig(context, null)
+        setSharedSecret(context, DEFAULT_DEV_SECRET)
     }
 }

@@ -37,15 +37,16 @@ enum class CommandSendStatus {
 }
 
 object ControllerCommandSender {
+    /** For Quick Settings: toggles (host turns off if soft AP is up, otherwise on). */
     fun sendHotspotToggle(context: Context) {
-        send(context, HotspotCommand.HOTSPOT_ON)
+        send(context, HotspotCommand.HOTSPOT_TOGGLE)
     }
 
     fun send(context: Context, command: HotspotCommand) {
         Thread {
             val status = sendViaBle(context, command)
             val message = when (status) {
-                CommandSendStatus.SUCCESS -> "Hotspot command sent"
+                CommandSendStatus.SUCCESS -> "Sent: $command"
                 CommandSendStatus.NOT_PAIRED -> "Device not paired yet"
                 CommandSendStatus.BLUETOOTH_OFF -> "Bluetooth is off"
                 CommandSendStatus.HOST_NOT_FOUND -> "Host not found nearby"

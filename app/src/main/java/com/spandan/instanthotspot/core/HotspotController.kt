@@ -1,21 +1,28 @@
 package com.spandan.instanthotspot.core
 
+import android.content.Context
+import com.spandan.instanthotspot.tethering.PrivilegedTethering
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
 object HotspotController {
+    /**
+     * Order: prefer `cmd connectivity` (same subsystem as [android.net.TetheringManager] / Wi-Fi tethering)
+     * over `cmd wifi` / `ndc` so sideload+root users match the "dialed in" TETHER_PRIVILEGED path as closely
+     * as shell allows.
+     */
     private val startCommands = listOf(
-        "/system/bin/cmd wifi start-softap",
         "/system/bin/cmd connectivity tether start wifi",
         "/system/bin/cmd connectivity tether start",
         "/system/bin/cmd connectivity tether start 0",
+        "/system/bin/cmd wifi start-softap",
         "/system/bin/ndc tether start",
     )
     private val stopCommands = listOf(
-        "/system/bin/cmd wifi stop-softap",
         "/system/bin/cmd connectivity tether stop wifi",
         "/system/bin/cmd connectivity tether stop",
         "/system/bin/cmd connectivity tether stop 0",
+        "/system/bin/cmd wifi stop-softap",
         "/system/bin/ndc tether stop",
     )
     private val configCommands = listOf(
@@ -26,6 +33,30 @@ object HotspotController {
     private var lastRootCheckAtMs: Long = 0L
     private var lastRootCheckResult: Boolean = false
     @Volatile private var lastExecutionReport: String = "No hotspot command executed yet."
+
+    /**
+     * 1) If the app has [TETHER_PRIVILEGED], use [TetheringManager] (no root shell) — e.g. priv-app
+     *    install, or optional systemless module that grants the permission.
+     * 2) Otherwise, typical **sideload + root** flow: run `cmd` / `ndc` as root (default for this app)
+     *    without any Magisk module.
+     */
+    fun enableHotspot(context: Context): Boolean {
+        val app = context.applicationContext
+        if (PrivilegedTethering.canUse(app) && PrivilegedTethering.startWifiTetheringSync(app)) {
+            lastExecutionReport = "SUCCESS | TETHER_PRIVILEGED TetheringManager.startTethering"
+            return true
+        }
+        return enableHotspotRoot()
+    }
+
+    fun disableHotspot(context: Context): Boolean {
+        val app = context.applicationContext
+        if (PrivilegedTethering.canUse(app) && PrivilegedTethering.stopWifiTethering(app)) {
+            lastExecutionReport = "SUCCESS | TETHER_PRIVILEGED TetheringManager.stopTethering"
+            return true
+        }
+        return disableHotspotRoot()
+    }
 
     fun enableHotspotRoot(): Boolean = runFirstSuccessful(startCommands)
 

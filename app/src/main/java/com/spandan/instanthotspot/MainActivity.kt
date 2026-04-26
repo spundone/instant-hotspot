@@ -27,6 +27,8 @@ import com.spandan.instanthotspot.controller.ControllerCommandSender
 import com.spandan.instanthotspot.controller.PairingStartError
 import com.spandan.instanthotspot.controller.PairingSession
 import com.spandan.instanthotspot.core.HotspotController
+import com.spandan.instanthotspot.core.HostCompatSummary
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.spandan.instanthotspot.host.HostBleService
 import java.security.SecureRandom
 import java.util.concurrent.Executors
@@ -47,6 +49,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var hostDebugLogText: TextView
     private lateinit var controllerDebugLogText: TextView
     private lateinit var appVersionText: TextView
+    private lateinit var hostInstallCompatText: TextView
     private lateinit var btnConfirmPairing: Button
     private lateinit var btnHostApproveCode: Button
     private lateinit var btnTogglePairingMode: Button
@@ -54,9 +57,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var btnStartPairing: Button
     private lateinit var btnSaveManualSecret: Button
     private lateinit var btnClientHotspotOn: Button
+    private lateinit var btnClientHotspotOff: Button
     private lateinit var btnClientSyncConfig: Button
     private lateinit var btnHostClearLogs: Button
     private lateinit var btnControllerClearLogs: Button
+    private lateinit var btnUnpairHost: Button
+    private lateinit var btnUnpairController: Button
     @Volatile private var activePairingSession: PairingSession? = null
     @Volatile private var pairingStartInProgress = false
     @Volatile private var pairingConfirmInProgress = false
@@ -77,6 +83,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, true)
         setContentView(R.layout.activity_main)
         appVersionText = findViewById(R.id.appVersionText)
+        hostInstallCompatText = findViewById(R.id.hostInstallCompatText)
         runCatching {
             val p = packageManager.getPackageInfo(packageName, 0)
             val v = p.versionName ?: "unknown"
@@ -113,9 +120,12 @@ class MainActivity : ComponentActivity() {
         hostDebugLogText = findViewById(R.id.hostDebugLogText)
         controllerDebugLogText = findViewById(R.id.controllerDebugLogText)
         btnClientHotspotOn = findViewById(R.id.btnClientHotspotOn)
+        btnClientHotspotOff = findViewById(R.id.btnClientHotspotOff)
         btnClientSyncConfig = findViewById(R.id.btnClientSyncConfig)
         btnHostClearLogs = findViewById(R.id.btnHostClearLogs)
         btnControllerClearLogs = findViewById(R.id.btnControllerClearLogs)
+        btnUnpairHost = findViewById(R.id.btnUnpairHost)
+        btnUnpairController = findViewById(R.id.btnUnpairController)
 
         renderCurrentSecret()
 
@@ -149,7 +159,10 @@ class MainActivity : ComponentActivity() {
             forceHostReAdvertise()
         }
         btnClientHotspotOn.setOnClickListener {
-            triggerClientHotspotOn()
+            sendClientHotspotCommand(HotspotCommand.HOTSPOT_ON, "HOTSPOT_ON", R.string.toast_client_hotspot_on_sent)
+        }
+        btnClientHotspotOff.setOnClickListener {
+            sendClientHotspotCommand(HotspotCommand.HOTSPOT_OFF, "HOTSPOT_OFF", R.string.toast_client_hotspot_off_sent)
         }
         btnClientSyncConfig.setOnClickListener {
             syncHotspotConfigToClient()
@@ -159,6 +172,12 @@ class MainActivity : ComponentActivity() {
         }
         btnControllerClearLogs.setOnClickListener {
             clearLogs()
+        }
+        btnUnpairHost.setOnClickListener {
+            unpairAsHost()
+        }
+        btnUnpairController.setOnClickListener {
+            unpairAsController()
         }
 
         secretInput.setOnEditorActionListener { _, _, _ ->
@@ -220,12 +239,24 @@ class MainActivity : ComponentActivity() {
         val hostVisible = mode == MODE_HOST
         hostSection.visibility = if (hostVisible) View.VISIBLE else View.GONE
         controllerSection.visibility = if (hostVisible) View.GONE else View.VISIBLE
+        if (hostVisible) {
+            refreshHostInstallCompat()
+        }
         renderCurrentSecret()
         uiHandler.removeCallbacks(statusRefreshRunnable)
         uiHandler.post(statusRefreshRunnable)
     }
 
+    private fun refreshHostInstallCompat() {
+        val probe = AppPrefs.lastApStateLine(this)
+        val apLine = if (probe.isNullOrBlank()) "Last AP probe: —" else "Last AP probe: $probe"
+        hostInstallCompatText.text = HostCompatSummary.build(this) + "\n" + apLine
+    }
+
     private fun renderCurrentSecret() {
+        if (currentMode() == MODE_HOST) {
+            refreshHostInstallCompat()
+        }
         val secret = AppPrefs.sharedSecret(this)
         val hasCustom = AppPrefs.hasNonDefaultSecret(this)
         hostSecretText.text = if (hasCustom) secret else getString(R.string.pairing_not_set)
@@ -266,12 +297,17 @@ class MainActivity : ComponentActivity() {
             else -> getString(R.string.client_status_paired_disconnected)
         }
         btnClientHotspotOn.isEnabled = paired && !pairingStartInProgress && !pairingConfirmInProgress
+        btnClientHotspotOff.isEnabled = paired && !pairingStartInProgress && !pairingConfirmInProgress
         btnClientSyncConfig.isEnabled = paired && !pairingStartInProgress && !pairingConfirmInProgress
         if (paired && !pairingStartInProgress && activePairingSession == null) {
             btnStartPairing.isEnabled = false
         }
-        clientHotspotConfigText.text =
-            AppPrefs.lastSyncedHotspotConfig(this) ?: getString(R.string.client_hotspot_config_empty)
+        val savedConfig = AppPrefs.lastSyncedHotspotConfig(this)
+        clientHotspotConfigText.text = if (savedConfig.isNullOrBlank()) {
+            getString(R.string.client_hotspot_config_empty)
+        } else {
+            formatHotspotConfigForDisplay(savedConfig)
+        }
         hostPairedDeviceText.text = if (pairedController.isNullOrBlank()) {
             getString(R.string.host_paired_device_none)
         } else {
@@ -284,6 +320,8 @@ class MainActivity : ComponentActivity() {
         }
         if (paired) {
             controllerPairCodeText.text = getString(R.string.already_paired_once)
+        } else if (activePairingSession == null) {
+            controllerPairCodeText.text = getString(R.string.pair_code_none)
         }
         val debug = DebugLog.read(this)
         hostDebugLogText.text = debug
@@ -316,6 +354,42 @@ class MainActivity : ComponentActivity() {
             if (next) getString(R.string.pairing_mode_enabled_toast) else getString(R.string.pairing_mode_disabled_toast),
             Toast.LENGTH_SHORT,
         ).show()
+    }
+
+    private fun unpairAsHost() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.unpair_or_reset_host)
+            .setMessage(R.string.unpair_host_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.unpair_confirm) { _, _ ->
+                val newSecret = generateReadableSecret()
+                AppPrefs.unpairAsHostWithNewSecret(this, newSecret)
+                AppPrefs.setPairingModeEnabled(this, true)
+                activePairingSession = null
+                DebugLog.append(this, "HOST_UI", "Host unpair: rotated secret, BLE service restart")
+                stopService(Intent(this, HostBleService::class.java))
+                if (currentMode() == MODE_HOST) {
+                    startService(Intent(this, HostBleService::class.java))
+                }
+                renderCurrentSecret()
+                Toast.makeText(this, R.string.unpair_host_done, Toast.LENGTH_LONG).show()
+            }
+            .show()
+    }
+
+    private fun unpairAsController() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.unpair_or_reset_controller)
+            .setMessage(R.string.unpair_controller_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.unpair_confirm) { _, _ ->
+                AppPrefs.unpairAsController(this)
+                activePairingSession = null
+                DebugLog.append(this, "CTRL_UI", "Controller unpair: cleared")
+                renderCurrentSecret()
+                Toast.makeText(this, R.string.unpair_controller_done, Toast.LENGTH_LONG).show()
+            }
+            .show()
     }
 
     private fun forceHostReAdvertise() {
@@ -434,20 +508,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun triggerClientHotspotOn() {
-        DebugLog.append(this, "CTRL_UI", "Sending HOTSPOT_ON command")
-        ControllerCommandSender.sendAsync(this, HotspotCommand.HOTSPOT_ON) { status ->
+    private fun sendClientHotspotCommand(
+        command: HotspotCommand,
+        logName: String,
+        successStringRes: Int,
+    ) {
+        DebugLog.append(this, "CTRL_UI", "Sending $logName command")
+        ControllerCommandSender.sendAsync(this, command) { status ->
             if (status == CommandSendStatus.SUCCESS) {
                 AppPrefs.markHostReachableNow(this)
             }
             val message = when (status) {
-                CommandSendStatus.SUCCESS -> "Hotspot ON command sent"
+                CommandSendStatus.SUCCESS -> getString(successStringRes)
                 CommandSendStatus.NOT_PAIRED -> getString(R.string.client_status_not_paired)
                 CommandSendStatus.BLUETOOTH_OFF -> "Bluetooth is off"
                 CommandSendStatus.HOST_NOT_FOUND -> "Host not found nearby"
                 CommandSendStatus.SEND_FAILED -> "Failed to send hotspot command"
             }
-            DebugLog.append(this, "CTRL_UI", "HOTSPOT_ON result: $status")
+            DebugLog.append(this, "CTRL_UI", "$logName result: $status")
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             renderCurrentSecret()
         }
@@ -465,11 +543,28 @@ class MainActivity : ComponentActivity() {
                     Toast.makeText(this, getString(R.string.client_sync_failed), Toast.LENGTH_SHORT).show()
                 } else {
                     DebugLog.append(this, "CTRL_UI", "Hotspot config sync success: ${config.take(80)}")
+                    clientHotspotConfigText.text = formatHotspotConfigForDisplay(config)
                     Toast.makeText(this, getString(R.string.client_sync_success), Toast.LENGTH_SHORT).show()
                 }
                 renderCurrentSecret()
             }
         }
+    }
+
+    private fun formatHotspotConfigForDisplay(raw: String): String {
+        val t = raw.trim()
+        if (t.isEmpty()) return getString(R.string.client_hotspot_config_empty)
+        var out = t
+            .replace(" ; ", "\n")
+            .replace(" | ", "\n")
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n")
+        if (!out.contains('\n') && out.length > 96) {
+            out = out.chunked(96).joinToString("\n")
+        }
+        return out.take(8_000)
     }
 
     private fun currentMode(): String {

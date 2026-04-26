@@ -1,0 +1,6 @@
+id=instanthotspot
+name=Instant Hotspot (priv-app)
+version=v1.0
+versionCode=1
+author=spandan
+description=Systemless /system/priv-app install of Instant Hotspot with TETHER_PRIVILEGED allowlist. See README in repository; flash after uninstalling a conflicting user copy if signatures differ. Reboot after install.

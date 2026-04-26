@@ -17,7 +17,9 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.core.AppPrefs
@@ -27,14 +29,21 @@ import com.spandan.instanthotspot.core.CommandSecurity
 import com.spandan.instanthotspot.core.DebugLog
 import com.spandan.instanthotspot.core.HotspotCommand
 import com.spandan.instanthotspot.core.HotspotController
+import com.spandan.instanthotspot.core.HotspotStateProbe
 import com.spandan.instanthotspot.core.PairingCrypto
 import com.spandan.instanthotspot.core.PairingCodec
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class HostBleService : Service() {
     private var gattServer: BluetoothGattServer? = null
     private var advertiser: BluetoothLeAdvertiser? = null
     private val pendingPairsByNonce = mutableMapOf<String, PendingPair>()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val hostCommandExecutor: ExecutorService = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "ih-host-cmd")
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -57,6 +66,8 @@ class HostBleService : Service() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(verifyApRunnable)
+        hostCommandExecutor.shutdown()
         stopAdvertising()
         AppPrefs.setHostServiceActive(this, false)
         DebugLog.append(this, "HOST_SVC", "Service destroyed")
@@ -68,16 +79,57 @@ class HostBleService : Service() {
     fun handleIncomingCommand(command: HotspotCommand): Boolean {
         DebugLog.append(this, "HOST_CMD", "Incoming command: $command")
         val ok = when (command) {
-            HotspotCommand.HOTSPOT_ON -> HotspotController.enableHotspotRoot()
-            HotspotCommand.HOTSPOT_OFF -> HotspotController.disableHotspotRoot()
-            HotspotCommand.HOTSPOT_TOGGLE -> HotspotController.enableHotspotRoot()
+            HotspotCommand.HOTSPOT_ON -> HotspotController.enableHotspot(this)
+            HotspotCommand.HOTSPOT_OFF -> HotspotController.disableHotspot(this)
+            HotspotCommand.HOTSPOT_TOGGLE -> {
+                when (HotspotStateProbe.currentApState(this)) {
+                    HotspotStateProbe.ApState.UP -> HotspotController.disableHotspot(this)
+                    HotspotStateProbe.ApState.DOWN, HotspotStateProbe.ApState.UNKNOWN -> {
+                        HotspotController.enableHotspot(this)
+                    }
+                }
+            }
         }
         DebugLog.append(
             this,
             "HOST_CMD",
             "Execution result=$ok :: ${HotspotController.lastHotspotExecutionReport()}",
         )
+        if (command == HotspotCommand.HOTSPOT_ON ||
+            command == HotspotCommand.HOTSPOT_OFF ||
+            command == HotspotCommand.HOTSPOT_TOGGLE
+        ) {
+            mainHandler.removeCallbacks(verifyApRunnable)
+            mainHandler.postDelayed(verifyApRunnable, 3_200L)
+        }
         return ok
+    }
+
+    private val verifyApRunnable = Runnable {
+        val st = HotspotStateProbe.currentApState(this)
+        val line = when (st) {
+            HotspotStateProbe.ApState.UP -> "Soft AP probe: ON"
+            HotspotStateProbe.ApState.DOWN -> "Soft AP probe: still OFF (ROM may need Settings)"
+            HotspotStateProbe.ApState.UNKNOWN -> "Soft AP probe: unknown (tethering stack)"
+        }
+        AppPrefs.setLastApStateLine(this, line)
+        DebugLog.append(this, "HOST_CMD", "After toggle: $line")
+        if (st == HotspotStateProbe.ApState.UP) {
+            showHotspotStateNotification(
+                "Hotspot appears active",
+                "Instant Hotspot reports the access point is up. Other devices can connect to your Wi-Fi hotspot if data is available.",
+            )
+        } else if (st == HotspotStateProbe.ApState.DOWN) {
+            showHotspotStateNotification(
+                "Hotspot may be off",
+                "Command returned but the access point is not reported as active. On some ROMs (e.g. MIUI) use the module + allowed privileges or check portable hotspot in Settings.",
+            )
+        } else {
+            showHotspotStateNotification(
+                "Hotspot state unclear",
+                "Could not confirm AP state. If internet sharing works, you can ignore this.",
+            )
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -209,11 +261,21 @@ class HostBleService : Service() {
         val lastAccepted = AppPrefs.lastAcceptedTimestamp(this)
         if (envelope.timestampMs <= lastAccepted) return false
 
-        val executed = handleIncomingCommand(envelope.command)
-        if (executed) {
-            AppPrefs.setLastAcceptedTimestamp(this, envelope.timestampMs)
+        // Commit idempotency and respond immediately. Hotspot / tethering can block for many seconds
+        // and must not run on the GATT / binder thread or BLE clients time out the write.
+        AppPrefs.setLastAcceptedTimestamp(this, envelope.timestampMs)
+        val command = envelope.command
+        hostCommandExecutor.execute {
+            try {
+                val ok = handleIncomingCommand(command)
+                if (!ok) {
+                    DebugLog.append(this, "HOST_CMD", "Command finished without success: $command")
+                }
+            } catch (t: Throwable) {
+                DebugLog.append(this, "HOST_CMD", "Command error: ${t.message}")
+            }
         }
-        return executed
+        return true
     }
 
     private data class PendingPair(
@@ -318,6 +380,28 @@ class HostBleService : Service() {
         return "PAIR_ECDH_OK"
     }
 
+    private fun showHotspotStateNotification(title: String, text: String) {
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID_HOTSPOT,
+                "Hotspot result",
+                NotificationManager.IMPORTANCE_HIGH,
+            )
+            channel.description = "Tells you whether the Wi-Fi access point started after a command"
+            manager.createNotificationChannel(channel)
+        }
+        val n = NotificationCompat.Builder(this, CHANNEL_ID_HOTSPOT)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setSmallIcon(R.drawable.ic_hotspot_tile)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(HOTSPOT_STATUS_NOTIFICATION_ID, n)
+    }
+
     private fun createNotification(): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -337,7 +421,9 @@ class HostBleService : Service() {
 
     companion object {
         private const val CHANNEL_ID = "host_ble_service"
+        private const val CHANNEL_ID_HOTSPOT = "host_hotspot_status"
         private const val NOTIFICATION_ID = 1001
+        private const val HOTSPOT_STATUS_NOTIFICATION_ID = 1002
         const val ACTION_RESTART_ADVERTISING = "com.spandan.instanthotspot.action.RESTART_ADVERTISING"
     }
 }

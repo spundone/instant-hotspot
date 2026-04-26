@@ -123,7 +123,7 @@ object BlePairingClient {
         val scanner = adapter.bluetoothLeScanner ?: return null
         val host = discoverHost(scanner) ?: return null
         val response = connectReadCharacteristic(context, host, BleProtocol.CONFIG_CHAR_UUID) ?: return null
-        val value = response.toString(Charsets.UTF_8).trim()
+        val value = String(response, Charsets.UTF_8).trim()
         if (value.isNotEmpty()) {
             AppPrefs.markHostReachableNow(context)
             AppPrefs.setLastSyncedHotspotConfig(context, value)
@@ -308,6 +308,7 @@ object BlePairingClient {
         private val done = CountDownLatch(1)
         private var gatt: BluetoothGatt? = null
         private var response: ByteArray? = null
+        private var discoveryStarted = false
 
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -316,8 +317,24 @@ object BlePairingClient {
                     return
                 }
                 if (newState == android.bluetooth.BluetoothProfile.STATE_CONNECTED) {
-                    gatt.discoverServices()
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                        if (!gatt.requestMtu(517)) {
+                            startDiscovery(gatt)
+                        }
+                    } else {
+                        startDiscovery(gatt)
+                    }
                 }
+            }
+
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                startDiscovery(gatt)
+            }
+
+            private fun startDiscovery(gatt: BluetoothGatt) {
+                if (discoveryStarted) return
+                discoveryStarted = true
+                gatt.discoverServices()
             }
 
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {

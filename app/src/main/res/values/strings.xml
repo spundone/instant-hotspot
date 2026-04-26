@@ -1,8 +1,11 @@
 <resources>
     <string name="app_name">Instant Hotspot</string>
-    <string name="tile_label">Instant Hotspot</string>
+    <string name="tile_label">Hotspot</string>
     <string name="main_title">Instant Hotspot</string>
-    <string name="host_section_hint">Keep this device nearby and enable pairing mode only when needed.</string>
+    <string name="author_byline">Spandan</string>
+    <string name="magisk_banner_host">Host (primary): install the project Magisk module so the app is a priv-app with TETHER_PRIVILEGED. In practice, reliable remote toggle on many ROMs (including stock/OEM) requires it — root alone is often not enough for stable TetheringManager or shell calls.</string>
+    <string name="host_section_hint">Keep this device nearby and enable pairing mode only when needed. Use the Magisk module on the host (see above).</string>
+    <string name="host_install_compat_title">Install and compatibility (host)</string>
     <string name="controller_section_hint">Use these controls from tablet/secondary phone to wake hotspot remotely.</string>
     <string name="mode_host">Host mode (primary phone)</string>
     <string name="mode_controller">Controller mode (tablet/secondary)</string>
@@ -52,12 +55,32 @@
     <string name="root_status_granted">Root status: GRANTED</string>
     <string name="root_status_denied">Root status: DENIED (grant `su` to this app)</string>
     <string name="client_hotspot_on">Turn hotspot ON (client)</string>
+    <string name="client_hotspot_off">Turn hotspot OFF (client)</string>
+    <string name="toast_client_hotspot_on_sent">Hotspot ON command sent</string>
+    <string name="toast_client_hotspot_off_sent">Hotspot OFF command sent</string>
+    <string name="tile_subtitle_tap_to_toggle">Tap to toggle</string>
+    <string name="tile_subtitle_open_app_pair">Open app to pair</string>
+    <string name="tile_subtitle_paired_offline">Paired — bring host close</string>
+    <string name="tile_toast_toggled">Hotspot command sent</string>
+    <string name="tile_toast_not_paired">Open Instant Hotspot and pair</string>
+    <string name="tile_toast_bt_off">Turn Bluetooth on</string>
+    <string name="tile_toast_host_missing">Host not in range</string>
+    <string name="tile_toast_send_failed">Could not reach host</string>
+    <string name="widget_hotspot_on">ON</string>
+    <string name="widget_hotspot_off">OFF</string>
     <string name="client_sync_hotspot_config">Sync hotspot settings</string>
     <string name="client_root_not_required">Controller root: NOT REQUIRED</string>
     <string name="client_status_not_paired">Client status: Not paired</string>
     <string name="client_status_paired_disconnected">Client status: Paired, host not reachable</string>
     <string name="client_status_paired_connected">Client status: Paired, host reachable</string>
-    <string name="client_hotspot_config_empty">Hotspot settings: not synced yet</string>
+    <string name="client_hotspot_config_empty">After sync, a snapshot of host tether / soft AP info shows here. Keep the host nearby and use Sync below.</string>
     <string name="client_sync_failed">Could not fetch hotspot settings from host</string>
     <string name="client_sync_success">Hotspot settings synced</string>
+    <string name="unpair_or_reset_host">Unpair and rotate secret (re-pair required)</string>
+    <string name="unpair_or_reset_controller">Unpair (clear this device)</string>
+    <string name="unpair_host_message">The paired controller will be cleared and a new host secret will be created. The tablet or secondary device must pair again before sending commands.</string>
+    <string name="unpair_controller_message">This device will forget the host pairing. Run nearby pairing (or enter a new secret) to connect again.</string>
+    <string name="unpair_host_done">Host pairing cleared. New secret is shown above.</string>
+    <string name="unpair_controller_done">Controller pairing cleared.</string>
+    <string name="unpair_confirm">Unpair</string>
 </resources>

@@ -16,3 +16,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "InstantHotspot"
 include(":app")
+include(":tethering-impl")
+include(":tethering-stub")
