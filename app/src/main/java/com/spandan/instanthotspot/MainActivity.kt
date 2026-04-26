@@ -23,6 +23,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.view.WindowCompat
 import androidx.transition.TransitionManager
 import com.google.android.material.transition.MaterialFade
+import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
@@ -201,11 +202,20 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * Host vs controller on the role step changes total step count (controller-only shortcuts page).
+     * Do not replace the pager adapter if [OnboardingV2.pageCount] is unchanged: the role fragment is
+     * preloaded (offscreen) while the user is still on welcome, and re-binding the adapter there
+     * recreates all fragments and crashes the app.
      */
     fun onOnboardingModeChanged() {
         if (!inOnboarding) return
         val pager = findViewById<ViewPager2>(R.id.onboardingPager) ?: return
         val newCount = OnboardingV2.pageCount(this)
+        val current = pager.adapter as? FragmentStateAdapter
+        if (current != null && current.itemCount == newCount) {
+            updateOnboardingNavForPage(pager.currentItem)
+            refreshOnboardingNextState()
+            return
+        }
         val newIndex = pager.currentItem.coerceIn(0, (newCount - 1).coerceAtLeast(0))
         pager.adapter = OnboardingPagerAdapter(this)
         pager.setCurrentItem(newIndex, false)
