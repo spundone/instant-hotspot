@@ -28,6 +28,7 @@ object AppPrefs {
     private const val KEY_HOST_PAIRED_SINCE_MS = "host_paired_since_ms"
     private const val KEY_VERBOSE_DEBUG_UI = "verbose_debug_ui"
     private const val KEY_OB_WANTS_HOST = "onboarding_wants_host"
+    private const val KEY_PREFERRED_NETWORK_MODE_BACKUP = "preferred_network_mode_backup_v1"
 
     // Replace with pairing-generated secret in the next milestone.
     private const val DEFAULT_DEV_SECRET = "change-me-before-production"
@@ -378,6 +379,21 @@ object AppPrefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putLong(KEY_HOST_PAIRED_SINCE_MS, timeMs)
+            .apply()
+    }
+
+    /**
+     * Raw string from `settings get global preferred_network_mode` before tools apply NR-only, for revert.
+     */
+    fun preferredNetworkModeBackup(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_PREFERRED_NETWORK_MODE_BACKUP, null)
+    }
+
+    fun setPreferredNetworkModeBackup(context: Context, value: String?) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PREFERRED_NETWORK_MODE_BACKUP, value)
             .apply()
     }
 }

@@ -64,6 +64,22 @@ object HotspotController {
 
     fun lastHotspotExecutionReport(): String = lastExecutionReport
 
+    /**
+     * Best-effort stdout from a shell line run as root (e.g. `settings get …`). Empty if not rooted.
+     */
+    fun shOutputRoot(line: String): String {
+        if (!hasRootPermission()) return ""
+        return runAsRootForOutput(line)
+    }
+
+    /**
+     * Run a one-line command as root; true if the last attempt reported success.
+     */
+    fun shLineRootSuccess(line: String): Boolean {
+        if (!hasRootPermission()) return false
+        return runAsRootDetailed(line).success
+    }
+
     fun hasRootPermission(): Boolean {
         val now = System.currentTimeMillis()
         // Keep checks responsive while avoiding repeated `su` prompts.

@@ -41,6 +41,8 @@ import com.spandan.instanthotspot.core.HostPendingPairSnapshot
 import com.spandan.instanthotspot.core.HostStateCodec
 import com.spandan.instanthotspot.core.HotspotCommand
 import com.spandan.instanthotspot.core.HotspotController
+import com.spandan.instanthotspot.core.LocalAlertPlayer
+import com.spandan.instanthotspot.core.NetworkRadioTuning
 import com.spandan.instanthotspot.core.HotspotStateProbe
 import com.spandan.instanthotspot.core.PairingCrypto
 import com.spandan.instanthotspot.core.PairingCodec
@@ -115,6 +117,9 @@ class HostBleService : Service() {
                     }
                 }
             }
+            HotspotCommand.RING_REMOTE -> LocalAlertPlayer.playAttention(this)
+            HotspotCommand.NET_5G_ONLY -> NetworkRadioTuning.apply5gOnly(this)
+            HotspotCommand.NET_REVERT_MODE -> NetworkRadioTuning.revertPreferredMode(this)
         }
         DebugLog.append(
             this,
@@ -140,23 +145,8 @@ class HostBleService : Service() {
         }
         AppPrefs.setLastApStateLine(this, line)
         DebugLog.append(this, "HOST_CMD", "After toggle: $line")
+        // One ongoing foreground notification is enough; avoid a second heads-up after each command.
         mainHandler.post { doRefreshHostForegroundNotif() }
-        if (st == HotspotStateProbe.ApState.UP) {
-            showHotspotStateNotification(
-                "Hotspot appears active",
-                "Instant Hotspot reports the access point is up. Other devices can connect to your Wi-Fi hotspot if data is available.",
-            )
-        } else if (st == HotspotStateProbe.ApState.DOWN) {
-            showHotspotStateNotification(
-                "Hotspot may be off",
-                "Command returned but the access point is not reported as active. On some ROMs (e.g. MIUI) use the module + allowed privileges or check portable hotspot in Settings.",
-            )
-        } else {
-            showHotspotStateNotification(
-                "Hotspot state unclear",
-                "Could not confirm AP state. If internet sharing works, you can ignore this.",
-            )
-        }
     }
 
     @SuppressLint("MissingPermission")
@@ -472,28 +462,6 @@ class HostBleService : Service() {
         return "PAIR_ECDH_OK"
     }
 
-    private fun showHotspotStateNotification(title: String, text: String) {
-        val manager = getSystemService(NotificationManager::class.java) ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID_HOTSPOT,
-                "Hotspot result",
-                NotificationManager.IMPORTANCE_HIGH,
-            )
-            channel.description = "Tells you whether the Wi-Fi access point started after a command"
-            manager.createNotificationChannel(channel)
-        }
-        val n = NotificationCompat.Builder(this, CHANNEL_ID_HOTSPOT)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setSmallIcon(R.drawable.ic_hotspot_tile)
-            .setOnlyAlertOnce(true)
-            .setAutoCancel(true)
-            .build()
-        manager.notify(HOTSPOT_STATUS_NOTIFICATION_ID, n)
-    }
-
     private fun ensureHostNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(NotificationManager::class.java) ?: return
@@ -627,9 +595,7 @@ class HostBleService : Service() {
     companion object {
         /** Newer channel (IMPORTANCE_DEFAULT) so promoted live-updates can apply; older ID kept unused. */
         private const val CHANNEL_ID = "host_ble_status"
-        private const val CHANNEL_ID_HOTSPOT = "host_hotspot_status"
         private const val NOTIFICATION_ID = 1001
-        private const val HOTSPOT_STATUS_NOTIFICATION_ID = 1002
         private const val NOTIFICATION_REFRESH_MS = 20_000L
         const val ACTION_RESTART_ADVERTISING = "com.spandan.instanthotspot.action.RESTART_ADVERTISING"
     }
