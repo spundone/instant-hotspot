@@ -12,6 +12,7 @@ You may choose either license for your use/distribution:
 
 ## Current status
 
+- **v0.6.7+** / **0.6.6**: **Multi-pair registries:** **Saved hosts** on the controller **Pair** tab (and on **simple controller home**) with **Use for commands** / **Remove**; **paired controllers** list on the host **Pair** tab with **Remove**. Host BLE path updated for **multiple controllers** paired over time. **Simple / full parity:** simple overflow adds **Sync hotspot settings**, **Open Wi‑Fi with typed credentials**, and **Unpair**; **Tools** adds **Simple controller home** (controller only) and **Run set-up again**; **Settings** adds a **Simple controller home** toggle; simple mode gets the same periodic status refresh as the full console. **Onboarding:** leaner pairing step (network handling stays on the network step). **v0.6.6** context: host after onboarding, pairing UI refresh, phrase field.
 - **v0.6.6+** / **0.6.5**: **Host after onboarding:** finishing set-up keeps **host mode** and **full console** (no forced controller simple home); `commitHostMode` uses **commit()**. **Pairing UI:** LocalSend-style flow (one **Connect nearby** block, large code, **or** + phrase path), updated copy, onboarding controller **phrase** field. **v0.6.5** context: onboarding state default, pairing re-layout, **v0.6.4** prefs.
 - **v0.6.5+** / **0.6.4**: **Onboarding host path:** `onboarding_v2_state` default and pairing step **re-layout** fix so choosing **Host** on the role step shows **host pairing** (not controller). **v0.6.4** context: pairing mode after onboarding, **Pair** tab toggle, prefs **commit** for BLE.
 - **v0.6.4+** / **0.6.3**: **Pairing mode** no longer gets turned off when onboarding finishes; **commit**-sync on toggle so BLE sees the flag immediately; **Enable/disable pairing** on the **Host → Pair** card as well as **Hotspot**.
@@ -117,7 +118,7 @@ That string is almost always the **JVM** Gradle is using. **Gradle 8.7** cannot 
 2. **Testing:** more OEM coverage for the state characteristic + soft AP probe edge cases.
 3. **Optional:** host-side notifications when AP state flips (without polling from controller).
 
-**Release artifacts:** each [GitHub release](https://github.com/spundone/instant-hotspot/releases) publishes a versioned **APK** and **`InstantHotspot-magisk-*.zip`**; see **v0.6.6+** above for the latest feature set. (Older milestones remain in the version bullets, e.g. v0.2.1+ for GATT `STATE` and the `cli/` scanner.)
+**Release artifacts:** each [GitHub release](https://github.com/spundone/instant-hotspot/releases) publishes a versioned **APK** and **`InstantHotspot-magisk-*.zip`**; see **v0.6.7+** above for the latest feature set. (Older milestones remain in the version bullets, e.g. v0.2.1+ for GATT `STATE` and the `cli/` scanner.)
 
 ## Contributing
 
