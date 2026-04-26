@@ -18,6 +18,14 @@ object AppPrefs {
     private const val KEY_LAST_AP_STATE = "last_ap_state_line"
     private const val KEY_USE_SIMPLE_HOME = "use_simple_controller_home"
     private const val KEY_TILE_NEXT_FORCE_ON = "tile_next_force_on"
+    private const val KEY_PREFERRED_HOST_ADDRESS = "preferred_host_address"
+    private const val KEY_MANUAL_HOTSPOT_SSID = "manual_hotspot_ssid"
+    private const val KEY_MANUAL_HOTSPOT_PASSWORD = "manual_hotspot_password"
+    private const val KEY_PAIRED_HOST_DISPLAY_NAME = "paired_host_display_name"
+    private const val KEY_LAST_HOST_AP_STATE = "last_host_ap_state_int"
+    private const val KEY_LAST_STATE_FETCH_MS = "last_host_state_fetch_ms"
+    private const val KEY_HOST_BOND_ALLOWLIST = "host_bond_allowlist_enabled"
+    private const val KEY_HOST_PAIRED_SINCE_MS = "host_paired_since_ms"
 
     // Replace with pairing-generated secret in the next milestone.
     private const val DEFAULT_DEV_SECRET = "change-me-before-production"
@@ -175,17 +183,21 @@ object AppPrefs {
     /** Clears host pairing state, command replay cursor, and sets a new shared secret. */
     fun unpairAsHostWithNewSecret(context: Context, newSecret: String) {
         setLastPairedController(context, null)
+        setHostPairedSinceMs(context, 0L)
         setPendingPairCode(context, null)
         setApprovedPairCode(context, null)
         setLastAcceptedTimestamp(context, 0L)
         setSharedSecret(context, newSecret)
+        HostPairingPersistence.clear(context)
     }
 
     /** Clears controller “paired” state and synced config; resets secret to the default dev placeholder. */
     fun unpairAsController(context: Context) {
         setClientPaired(context, false)
         setLastPairedHost(context, null)
+        setPairedHostDisplayName(context, null)
         setLastSyncedHotspotConfig(context, null)
+        setLastHostApState(context, HostStateCodec.PREF_UNKNOWN)
         setSharedSecret(context, DEFAULT_DEV_SECRET)
     }
 
@@ -215,6 +227,125 @@ object AppPrefs {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_TILE_NEXT_FORCE_ON, value)
+            .apply()
+    }
+
+    fun preferredHostAddress(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_PREFERRED_HOST_ADDRESS, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    fun setPreferredHostAddress(context: Context, address: String?) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PREFERRED_HOST_ADDRESS, address?.trim())
+            .apply()
+    }
+
+    fun manualHotspotSsid(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_MANUAL_HOTSPOT_SSID, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    fun setManualHotspotSsid(context: Context, ssid: String?) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_MANUAL_HOTSPOT_SSID, ssid?.trim())
+            .apply()
+    }
+
+    fun manualHotspotPassword(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_MANUAL_HOTSPOT_PASSWORD, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    fun setManualHotspotPassword(context: Context, password: String?) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_MANUAL_HOTSPOT_PASSWORD, password?.trim())
+            .apply()
+    }
+
+    /** Bluetooth name of the paired host (controller), if known. */
+    fun pairedHostDisplayName(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_PAIRED_HOST_DISPLAY_NAME, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    fun setPairedHostDisplayName(context: Context, name: String?) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_PAIRED_HOST_DISPLAY_NAME, name?.trim())
+            .apply()
+    }
+
+    /**
+     * Last known soft AP state from host read: [HostStateCodec.PREF_ON], [HostStateCodec.PREF_OFF],
+     * or [HostStateCodec.PREF_UNKNOWN].
+     */
+    fun lastHostApState(context: Context): Int {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_LAST_HOST_AP_STATE, HostStateCodec.PREF_UNKNOWN)
+    }
+
+    fun setLastHostApState(context: Context, state: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_LAST_HOST_AP_STATE, state)
+            .apply()
+    }
+
+    fun lastHostStateFetchMs(context: Context): Long {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getLong(KEY_LAST_STATE_FETCH_MS, 0L)
+    }
+
+    fun markHostStateFetchedNow(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putLong(KEY_LAST_STATE_FETCH_MS, System.currentTimeMillis())
+            .apply()
+    }
+
+    fun shouldThrottleStateRefresh(context: Context, minIntervalMs: Long = 8_000L): Boolean {
+        val t = lastHostStateFetchMs(context)
+        if (t <= 0L) return false
+        return System.currentTimeMillis() - t < minIntervalMs
+    }
+
+    /**
+     * When enabled, only Bluetooth-bonded controllers may send hotspot commands (pairing unchanged).
+     */
+    fun isHostBondAllowlistEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_HOST_BOND_ALLOWLIST, false)
+    }
+
+    fun setHostBondAllowlistEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_HOST_BOND_ALLOWLIST, enabled)
+            .apply()
+    }
+
+    /** Set when a controller successfully completes ECDH pairing on the host. Cleared on host unpair. */
+    fun hostPairedSinceMs(context: Context): Long {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getLong(KEY_HOST_PAIRED_SINCE_MS, 0L)
+    }
+
+    fun setHostPairedSinceMs(context: Context, timeMs: Long) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putLong(KEY_HOST_PAIRED_SINCE_MS, timeMs)
             .apply()
     }
 }

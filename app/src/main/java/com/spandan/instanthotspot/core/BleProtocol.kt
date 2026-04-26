@@ -8,6 +8,8 @@ object BleProtocol {
     val COMMAND_CHAR_UUID: UUID = UUID.fromString("6d8f3e10-a896-4a2f-b63a-9c1c6ff00102")
     val PAIRING_CHAR_UUID: UUID = UUID.fromString("6d8f3e10-a896-4a2f-b63a-9c1c6ff00103")
     val CONFIG_CHAR_UUID: UUID = UUID.fromString("6d8f3e10-a896-4a2f-b63a-9c1c6ff00104")
+    /** Read current soft AP state: UTF-8 `ap=0|1|2` (see [HostStateCodec]). */
+    val STATE_CHAR_UUID: UUID = UUID.fromString("6d8f3e10-a896-4a2f-b63a-9c1c6ff00105")
 }
 
 object CommandCodec {

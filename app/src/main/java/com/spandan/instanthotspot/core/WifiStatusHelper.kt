@@ -1,17 +1,28 @@
 package com.spandan.instanthotspot.core
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
+import androidx.core.content.ContextCompat
 import com.spandan.instanthotspot.R
 
 object WifiStatusHelper {
+    private fun canReadNetworkState(context: Context): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_NETWORK_STATE,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     /**
      * Best-effort current Wi‑Fi SSID (null if unknown, "<unknown>" if blocked by privacy).
      */
     fun currentSsid(context: Context): String? {
+        if (!canReadNetworkState(context)) return null
         return runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
@@ -28,6 +39,7 @@ object WifiStatusHelper {
     }
 
     fun isOnWifi(context: Context): Boolean {
+        if (!canReadNetworkState(context)) return false
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val n = cm.activeNetwork ?: return false
         return cm.getNetworkCapabilities(n)

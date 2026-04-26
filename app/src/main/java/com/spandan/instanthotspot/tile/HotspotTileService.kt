@@ -8,6 +8,7 @@ import android.widget.Toast
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.HotspotCommand
+import com.spandan.instanthotspot.core.HostStateCodec
 import com.spandan.instanthotspot.controller.CommandSendStatus
 import com.spandan.instanthotspot.controller.ControllerCommandSender
 
@@ -17,6 +18,11 @@ class HotspotTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         refreshTile()
+        if (AppPrefs.isClientPaired(this) && !AppPrefs.shouldThrottleStateRefresh(this)) {
+            ControllerCommandSender.refreshHostStateAsync(this) {
+                mainHandler.post { refreshTile() }
+            }
+        }
     }
 
     override fun onClick() {
@@ -76,8 +82,13 @@ class HotspotTileService : TileService() {
         }
         tile.label = getString(R.string.tile_label)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val ap = AppPrefs.lastHostApState(this)
             tile.subtitle = when {
                 !paired -> getString(R.string.tile_subtitle_open_app_pair)
+                ap == HostStateCodec.PREF_ON -> getString(R.string.tile_subtitle_ap_on)
+                ap == HostStateCodec.PREF_OFF -> getString(R.string.tile_subtitle_ap_off)
+                ap == HostStateCodec.PREF_UNKNOWN && connected -> getString(R.string.tile_subtitle_tap_to_toggle)
+                ap == HostStateCodec.PREF_UNKNOWN -> getString(R.string.tile_subtitle_ap_unknown)
                 connected -> getString(R.string.tile_subtitle_tap_to_toggle)
                 else -> getString(R.string.tile_subtitle_paired_offline)
             }

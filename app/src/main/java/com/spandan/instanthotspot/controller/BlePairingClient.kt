@@ -54,7 +54,7 @@ object BlePairingClient {
         val adapter = manager.adapter ?: return PairingStartResult(error = PairingStartError.HANDSHAKE_FAILED)
         if (!adapter.isEnabled) return PairingStartResult(error = PairingStartError.BLUETOOTH_OFF)
         val scanner = adapter.bluetoothLeScanner ?: return PairingStartResult(error = PairingStartError.HANDSHAKE_FAILED)
-        val host = discoverHost(scanner) ?: return PairingStartResult(error = PairingStartError.HOST_NOT_FOUND)
+        val host = discoverHost(context, scanner) ?: return PairingStartResult(error = PairingStartError.HOST_NOT_FOUND)
         DebugLog.append(context, "CTRL_PAIR", "Host discovered: ${host.address}")
 
         val nonce = UUID.randomUUID().toString().take(12)
@@ -99,7 +99,7 @@ object BlePairingClient {
         val adapter = manager.adapter ?: return false
         if (!adapter.isEnabled) return false
         val scanner = adapter.bluetoothLeScanner ?: return false
-        val host = discoverHost(scanner) ?: return false
+        val host = discoverHost(context, scanner) ?: return false
         val message = PairingCodec.encode(
             listOf("PAIR_ECDH_CONFIRM", session.nonce, session.localPublicKeyB64, session.remotePublicKeyB64),
         )
@@ -110,6 +110,11 @@ object BlePairingClient {
         if (ok) {
             AppPrefs.markHostReachableNow(context)
             AppPrefs.setLastPairedHost(context, host.address)
+            val label = runCatching { host.name }
+                .getOrNull()
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+            AppPrefs.setPairedHostDisplayName(context, label)
         }
         return ok
     }
@@ -121,7 +126,7 @@ object BlePairingClient {
         val adapter = manager.adapter ?: return null
         if (!adapter.isEnabled) return null
         val scanner = adapter.bluetoothLeScanner ?: return null
-        val host = discoverHost(scanner) ?: return null
+        val host = discoverHost(context, scanner) ?: return null
         val response = connectReadCharacteristic(context, host, BleProtocol.CONFIG_CHAR_UUID) ?: return null
         val value = String(response, Charsets.UTF_8).trim()
         if (value.isNotEmpty()) {
@@ -133,13 +138,23 @@ object BlePairingClient {
     }
 
     @SuppressLint("MissingPermission")
-    private fun discoverHost(scanner: BluetoothLeScanner): BluetoothDevice? {
+    private fun discoverHost(context: Context, scanner: BluetoothLeScanner): BluetoothDevice? {
+        val preferred = AppPrefs.preferredHostAddress(context)
         var found: BluetoothDevice? = null
+        val seen = linkedMapOf<String, BluetoothDevice>()
         val latch = CountDownLatch(1)
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                found = result.device
-                latch.countDown()
+                val d = result.device ?: return
+                val address = d.address ?: return
+                if (address.isBlank()) return
+                seen[address] = d
+                if (preferred != null && address.equals(preferred, ignoreCase = true)) {
+                    found = d
+                    latch.countDown()
+                } else if (found == null) {
+                    found = d
+                }
             }
         }
         val filters = listOf(
@@ -149,6 +164,9 @@ object BlePairingClient {
         scanner.startScan(filters, settings, callback)
         latch.await(12, TimeUnit.SECONDS)
         scanner.stopScan(callback)
+        if (found == null && seen.isNotEmpty()) {
+            found = seen.values.firstOrNull()
+        }
         return found
     }
 
@@ -172,6 +190,7 @@ object BlePairingClient {
         return op.awaitAndClose()
     }
 
+    @SuppressLint("MissingPermission")
     private class WriteReadOperation(
         private val context: Context,
         private val payload: ByteArray,
@@ -304,6 +323,7 @@ object BlePairingClient {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private class ReadOnlyOperation(private val targetUuid: java.util.UUID) {
         private val done = CountDownLatch(1)
         private var gatt: BluetoothGatt? = null

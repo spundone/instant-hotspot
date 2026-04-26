@@ -1,6 +1,7 @@
 package com.spandan.instanthotspot.host
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattServer
@@ -11,22 +12,33 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.app.PendingIntent
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import com.spandan.instanthotspot.MainActivity
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.BleProtocol
 import com.spandan.instanthotspot.core.CommandCodec
 import com.spandan.instanthotspot.core.CommandSecurity
 import com.spandan.instanthotspot.core.DebugLog
+import com.spandan.instanthotspot.core.HostPairingPersistence
+import com.spandan.instanthotspot.core.HostPendingPairSnapshot
+import com.spandan.instanthotspot.core.HostStateCodec
 import com.spandan.instanthotspot.core.HotspotCommand
 import com.spandan.instanthotspot.core.HotspotController
 import com.spandan.instanthotspot.core.HotspotStateProbe
@@ -36,6 +48,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+@SuppressLint("MissingPermission")
 class HostBleService : Service() {
     private var gattServer: BluetoothGattServer? = null
     private var advertiser: BluetoothLeAdvertiser? = null
@@ -45,15 +58,26 @@ class HostBleService : Service() {
         Thread(r, "ih-host-cmd")
     }
 
+    private val refreshNotifRunnable = object : Runnable {
+        override fun run() {
+            if (!AppPrefs.isHostServiceActive(this@HostBleService)) return
+            doRefreshHostForegroundNotif()
+            mainHandler.postDelayed(this, NOTIFICATION_REFRESH_MS)
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(NOTIFICATION_ID, createNotification())
+        ensureHostNotificationChannel()
+        startOrUpdateHostForegroundNotification(buildHostForegroundNotification())
         AppPrefs.setHostServiceActive(this, true)
+        restorePendingPairsFromDisk()
         DebugLog.append(this, "HOST_SVC", "Service created")
         startGattServer()
         startAdvertising()
+        mainHandler.post(refreshNotifRunnable)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -61,11 +85,13 @@ class HostBleService : Service() {
             DebugLog.append(this, "HOST_SVC", "Force re-advertise requested")
             stopAdvertising()
             startAdvertising()
+            mainHandler.post { doRefreshHostForegroundNotif() }
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(refreshNotifRunnable)
         mainHandler.removeCallbacks(verifyApRunnable)
         hostCommandExecutor.shutdown()
         stopAdvertising()
@@ -114,6 +140,7 @@ class HostBleService : Service() {
         }
         AppPrefs.setLastApStateLine(this, line)
         DebugLog.append(this, "HOST_CMD", "After toggle: $line")
+        mainHandler.post { doRefreshHostForegroundNotif() }
         if (st == HotspotStateProbe.ApState.UP) {
             showHotspotStateNotification(
                 "Hotspot appears active",
@@ -154,10 +181,16 @@ class HostBleService : Service() {
             BluetoothGattCharacteristic.PROPERTY_READ,
             BluetoothGattCharacteristic.PERMISSION_READ,
         )
+        val stateCharacteristic = BluetoothGattCharacteristic(
+            BleProtocol.STATE_CHAR_UUID,
+            BluetoothGattCharacteristic.PROPERTY_READ,
+            BluetoothGattCharacteristic.PERMISSION_READ,
+        )
         val service = BluetoothGattService(BleProtocol.SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
         service.addCharacteristic(commandCharacteristic)
         service.addCharacteristic(pairingCharacteristic)
         service.addCharacteristic(configCharacteristic)
+        service.addCharacteristic(stateCharacteristic)
         server.addService(service)
         gattServer = server
     }
@@ -202,8 +235,10 @@ class HostBleService : Service() {
             value: ByteArray?,
         ) {
             val response = when {
-                characteristic?.uuid == BleProtocol.COMMAND_CHAR_UUID && value != null ->
-                    if (processCommandWrite(value)) "OK" else "FAIL"
+                characteristic?.uuid == BleProtocol.COMMAND_CHAR_UUID && value != null && device != null ->
+                    if (processCommandWrite(device, value)) "OK" else "FAIL"
+                characteristic?.uuid == BleProtocol.COMMAND_CHAR_UUID && value != null && device == null ->
+                    "FAIL"
                 characteristic?.uuid == BleProtocol.PAIRING_CHAR_UUID && value != null && device != null ->
                     processPairingWrite(device.address, value)
                 else -> "FAIL"
@@ -237,6 +272,8 @@ class HostBleService : Service() {
             val response: ByteArray? = when (characteristic?.uuid) {
                 BleProtocol.PAIRING_CHAR_UUID -> characteristic.value ?: byteArrayOf()
                 BleProtocol.CONFIG_CHAR_UUID -> HotspotController.hotspotConfigSummary().toByteArray(Charsets.UTF_8)
+                BleProtocol.STATE_CHAR_UUID ->
+                    HostStateCodec.encodeFromProbe(HotspotStateProbe.currentApState(this@HostBleService))
                 else -> null
             }
             if (response != null) {
@@ -249,7 +286,17 @@ class HostBleService : Service() {
 
     private val advertiseCallback = object : AdvertiseCallback() {}
 
-    private fun processCommandWrite(raw: ByteArray): Boolean {
+    private fun processCommandWrite(device: BluetoothDevice, raw: ByteArray): Boolean {
+        if (AppPrefs.isHostBondAllowlistEnabled(this)) {
+            if (device.bondState != BluetoothDevice.BOND_BONDED) {
+                DebugLog.append(
+                    this,
+                    "HOST_CMD",
+                    "Rejected command from ${device.address}: bond allowlist requires paired (bonded) device",
+                )
+                return false
+            }
+        }
         val envelope = CommandCodec.decode(raw) ?: return false
         val payload = CommandCodec.payload(envelope.command, envelope.timestampMs, envelope.nonce)
         val secret = AppPrefs.sharedSecret(this)
@@ -286,6 +333,47 @@ class HostBleService : Service() {
         val hostPublicKeyB64: String,
         val createdAtMs: Long,
     )
+
+    private fun persistPendingPairsToDisk() {
+        val list = pendingPairsByNonce.values.map { p ->
+            HostPendingPairSnapshot(
+                nonce = p.nonce,
+                candidateSecret = p.candidateSecret,
+                code = p.code,
+                controllerPublicKeyB64 = p.controllerPublicKeyB64,
+                hostPublicKeyB64 = p.hostPublicKeyB64,
+                createdAtMs = p.createdAtMs,
+            )
+        }
+        HostPairingPersistence.replaceAll(this, list)
+    }
+
+    private fun restorePendingPairsFromDisk() {
+        val now = System.currentTimeMillis()
+        val maxAge = TimeUnit.MINUTES.toMillis(2)
+        val loaded = HostPairingPersistence.load(this)
+        var kept = 0
+        for (e in loaded) {
+            if (now - e.createdAtMs > maxAge) continue
+            pendingPairsByNonce[e.nonce] = PendingPair(
+                nonce = e.nonce,
+                candidateSecret = e.candidateSecret,
+                code = e.code,
+                controllerPublicKeyB64 = e.controllerPublicKeyB64,
+                hostPublicKeyB64 = e.hostPublicKeyB64,
+                createdAtMs = e.createdAtMs,
+            )
+            kept++
+        }
+        if (kept != loaded.size) {
+            persistPendingPairsToDisk()
+        } else if (kept > 0) {
+            val latest = pendingPairsByNonce.values.maxByOrNull { it.createdAtMs }
+            if (latest != null) {
+                AppPrefs.setPendingPairCode(this, latest.code)
+            }
+        }
+    }
 
     private fun processPairingWrite(deviceAddress: String, raw: ByteArray): String {
         if (!AppPrefs.isPairingModeEnabled(this)) {
@@ -339,6 +427,7 @@ class HostBleService : Service() {
             hostPublicKeyB64 = hostPublicB64,
             createdAtMs = System.currentTimeMillis(),
         )
+        persistPendingPairsToDisk()
         AppPrefs.setPendingPairCode(this, code)
         AppPrefs.setApprovedPairCode(this, null)
         DebugLog.append(this, "HOST_PAIR", "Generated code $code for $deviceAddress")
@@ -372,8 +461,11 @@ class HostBleService : Service() {
         AppPrefs.setPendingPairCode(this, null)
         AppPrefs.setApprovedPairCode(this, null)
         AppPrefs.setLastPairedController(this, deviceAddress)
+        AppPrefs.setHostPairedSinceMs(this, System.currentTimeMillis())
         pendingPairsByNonce.remove(nonce)
+        persistPendingPairsToDisk()
         DebugLog.append(this, "HOST_PAIR", "Pairing success for $deviceAddress")
+        mainHandler.post { doRefreshHostForegroundNotif() }
         gattServer?.getService(BleProtocol.SERVICE_UUID)
             ?.getCharacteristic(BleProtocol.PAIRING_CHAR_UUID)
             ?.value = PairingCodec.encode(listOf("PAIR_ECDH_OK"))
@@ -402,28 +494,143 @@ class HostBleService : Service() {
         manager.notify(HOTSPOT_STATUS_NOTIFICATION_ID, n)
     }
 
-    private fun createNotification(): Notification {
-        val manager = getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Instant Hotspot Host",
-                NotificationManager.IMPORTANCE_LOW,
+    private fun ensureHostNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.notif_host_channel_name),
+            NotificationManager.IMPORTANCE_DEFAULT,
+        )
+        channel.description = getString(R.string.notif_host_channel_desc)
+        channel.setShowBadge(true)
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun doRefreshHostForegroundNotif() {
+        startOrUpdateHostForegroundNotification(buildHostForegroundNotification())
+    }
+
+    private fun startOrUpdateHostForegroundNotification(n: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                n,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
             )
-            manager.createNotificationChannel(channel)
+        } else {
+            @Suppress("DEPRECATION")
+            startForeground(NOTIFICATION_ID, n)
         }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Instant Hotspot Host active")
-            .setContentText("Listening for offline hotspot commands")
+    }
+
+    private fun buildHostForegroundNotification(): Notification {
+        ensureHostNotificationChannel()
+        val ap = HotspotStateProbe.currentApState(this)
+        val (titleRes, shortChip) = when (ap) {
+            HotspotStateProbe.ApState.UP -> R.string.notif_host_title_hotspot_on to
+                getString(R.string.notif_host_short_hotspot_on)
+            HotspotStateProbe.ApState.DOWN -> R.string.notif_host_title_hotspot_off to
+                getString(R.string.notif_host_short_hotspot_off)
+            HotspotStateProbe.ApState.UNKNOWN -> R.string.notif_host_title_probe_unknown to
+                getString(R.string.notif_host_short_status_unknown)
+        }
+        val apWord = when (ap) {
+            HotspotStateProbe.ApState.UP -> getString(R.string.widget_hotspot_on)
+            HotspotStateProbe.ApState.DOWN -> getString(R.string.widget_hotspot_off)
+            HotspotStateProbe.ApState.UNKNOWN -> getString(R.string.notif_host_ap_state_line_unknown)
+        }
+        val sinceLine = when {
+            AppPrefs.lastPairedController(this).isNullOrBlank() -> getString(
+                R.string.notif_host_line_paired_since,
+                getString(R.string.notif_host_paired_none),
+            )
+            AppPrefs.hostPairedSinceMs(this) <= 0L -> getString(
+                R.string.notif_host_line_paired_since,
+                getString(R.string.notif_host_paired_since_unknown),
+            )
+            else -> getString(
+                R.string.notif_host_line_paired_since,
+                formatPairedSinceInstant(AppPrefs.hostPairedSinceMs(this)),
+            )
+        }
+        val bigText = buildString {
+            appendLine(getString(R.string.notif_host_line_access_point, apWord))
+            appendLine(getString(R.string.notif_host_line_paired, friendlyPairedControllerLine()))
+            appendLine(sinceLine)
+        }
+        val now = System.currentTimeMillis()
+        val open = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP,
+            ),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        var b = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_hotspot_tile)
-            .build()
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentTitle(getString(titleRes))
+            .setContentText(getString(R.string.notif_host_content_listening))
+            .setContentIntent(open)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText.trimEnd()))
+            .setShowWhen(true)
+            .setWhen(now)
+        b = trySetShortCriticalText(tryRequestPromotedOngoing(b), shortChip)
+        return b.build()
+    }
+
+    private fun friendlyPairedControllerLine(): String {
+        val addr = AppPrefs.lastPairedController(this)
+        if (addr.isNullOrBlank()) {
+            return getString(R.string.notif_host_paired_none)
+        }
+        val name = runCatching {
+            val a = getSystemService(BluetoothManager::class.java)?.adapter ?: return@runCatching null
+            a.getRemoteDevice(addr).name?.trim()
+        }.getOrNull()
+        return if (name.isNullOrBlank()) {
+            addr
+        } else {
+            "$name · $addr"
+        }
+    }
+
+    private fun formatPairedSinceInstant(epochMs: Long): String {
+        val at = Instant.ofEpochMilli(epochMs)
+            .atZone(ZoneId.systemDefault())
+        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM).format(at)
+    }
+
+    private fun tryRequestPromotedOngoing(b: NotificationCompat.Builder): NotificationCompat.Builder {
+        if (Build.VERSION.SDK_INT < 35) return b
+        return runCatching {
+            val m = b.javaClass.getMethod("setRequestPromotedOngoing", java.lang.Boolean.TYPE)
+            m.invoke(b, true)
+            b
+        }.getOrElse { b }
+    }
+
+    private fun trySetShortCriticalText(b: NotificationCompat.Builder, t: String): NotificationCompat.Builder {
+        if (Build.VERSION.SDK_INT < 35) return b
+        return runCatching {
+            val m = b.javaClass.getMethod("setShortCriticalText", CharSequence::class.java)
+            m.invoke(b, t)
+            b
+        }.getOrElse { b }
     }
 
     companion object {
-        private const val CHANNEL_ID = "host_ble_service"
+        /** Newer channel (IMPORTANCE_DEFAULT) so promoted live-updates can apply; older ID kept unused. */
+        private const val CHANNEL_ID = "host_ble_status"
         private const val CHANNEL_ID_HOTSPOT = "host_hotspot_status"
         private const val NOTIFICATION_ID = 1001
         private const val HOTSPOT_STATUS_NOTIFICATION_ID = 1002
+        private const val NOTIFICATION_REFRESH_MS = 20_000L
         const val ACTION_RESTART_ADVERTISING = "com.spandan.instanthotspot.action.RESTART_ADVERTISING"
     }
 }

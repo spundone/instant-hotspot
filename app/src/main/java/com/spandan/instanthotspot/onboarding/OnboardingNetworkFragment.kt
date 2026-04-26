@@ -15,6 +15,7 @@ import com.google.android.material.card.MaterialCardView
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.controller.BlePairingClient
 import com.spandan.instanthotspot.core.AppPrefs
+import com.spandan.instanthotspot.core.HotspotConfigParser
 import com.spandan.instanthotspot.core.WifiStatusHelper
 import com.spandan.instanthotspot.MainActivity
 import java.util.concurrent.Executors
@@ -90,7 +91,7 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
                     Toast.makeText(requireContext(), R.string.client_sync_failed, Toast.LENGTH_SHORT).show()
                 } else {
                     AppPrefs.setLastSyncedHotspotConfig(requireContext(), c)
-                    val creds = parseSsidPassword(c)
+                    val creds = HotspotConfigParser.parseSsidPassword(c)
                     if (creds != null) {
                         Toast.makeText(
                             requireContext(),
@@ -131,19 +132,4 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
             .take(8_000)
     }
 
-    private data class HotspotCredentials(val ssid: String, val password: String)
-
-    private fun parseSsidPassword(raw: String): HotspotCredentials? {
-        val ssidRegexes = listOf(
-            Regex("""(?i)\bssid\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
-            Regex("""(?i)\bnetworkName\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
-        )
-        val passRegexes = listOf(
-            Regex("""(?i)\b(passphrase|password|psk|preSharedKey)\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
-        )
-        val ssid = ssidRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(1)?.trim() }
-        val pass = passRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(2)?.trim() }
-        if (ssid.isNullOrBlank() || pass.isNullOrBlank()) return null
-        return HotspotCredentials(ssid, pass)
-    }
 }
