@@ -12,7 +12,8 @@ You may choose either license for your use/distribution:
 
 ## Current status
 
-- **v0.3.0+**: In-app **GitHub** and **Releases (APK + Magisk / KernelSU zip)** links, **Check for updates** (GitHub API), shortcuts to **tethering / Bluetooth / app info / battery** optimization, **copy debug log**; `lint` clean with manifest and BLE suppressions. Repo: <https://github.com/spundone/instant-hotspot>.
+- **v0.4.0+**: **M3** home refactor (split layouts, **tablet / landscape** two-pane, entrance + **Material fade** for mode and verbose), **host foreground live status** notification (hotspot on/off, paired controller, paired-since) with promoted-ongoing support where the OS allows, BLE **host state** + **config** plumbing, **`cli/`** companion. Repo: <https://github.com/spundone/instant-hotspot>.
+- **v0.3.0+**: In-app **GitHub** and **Releases (APK + Magisk / KernelSU zip)** links, **Check for updates** (GitHub API), shortcuts to **tethering / Bluetooth / app info / battery** optimization, **copy debug log**; `lint` clean with manifest and BLE suppressions.
 - **v0.2.1+**: BLE **state** characteristic for on/off/unknown AP (tile + widget), **pending pairing** survives host service restarts, optional **bond-only** command allowlist on the host, shared **HotspotConfigParser**, and an experimental **`cli/`** scanner (Python + bleak).
 - **v0.2.0+**: Multi-step in-app set-up (welcome → role → pairing → remote controls → Wi‑Fi / sync of hotspot
   settings → tiles & widgets), then a **minimal home** for the controller, or the full “console” for
