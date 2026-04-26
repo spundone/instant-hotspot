@@ -77,6 +77,29 @@
             android:text="@string/host_set_passphrase" />
 
         <TextView
+            style="@style/Widget.IH.Overline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/host_pairing_mode_overline" />
+
+        <TextView
+            style="@style/TextAppearance.Material3.BodySmall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/host_pairing_mode_hint_pair_tab"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnHostPairingModeToggle"
+            style="@style/Widget.InstantHotspot.Button.Expressive"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/enable_pairing_mode" />
+
+        <TextView
             android:id="@+id/hostPairCompactHint"
             style="@style/TextAppearance.Material3.BodySmall"
             android:layout_width="match_parent"

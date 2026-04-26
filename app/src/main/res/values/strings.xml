@@ -96,6 +96,8 @@
     <string name="host_re_advertise_done">Host BLE advertising restarted.</string>
     <string name="disable_pairing_mode">Disable pairing mode</string>
     <string name="enable_pairing_mode">Enable pairing mode</string>
+    <string name="host_pairing_mode_overline">Bluetooth pairing</string>
+    <string name="host_pairing_mode_hint_pair_tab">When off, the host rejects new PAIR handshakes. Turn on to pair or re-pair a controller. The same toggle exists on the Hotspot tab.</string>
     <string name="pairing_mode_enabled_toast">Pairing mode enabled on host.</string>
     <string name="pairing_mode_disabled_toast">Pairing mode disabled on host.</string>
     <string name="pairing_failed_pair_mode_off">Host found, but pairing mode is OFF. Enable it on host.</string>

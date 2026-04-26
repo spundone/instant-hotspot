@@ -15,8 +15,6 @@ object OnboardingV2 {
     private const val KEY_MIGRATED = "onboarding_v2_migrated"
     /** Must match [AppPrefs] key used for simple vs full home. */
     private const val KEY_USE_SIMPLE_HOME = "use_simple_controller_home"
-    /** Must match [AppPrefs] — turn off open pairing after onboarding completes. */
-    private const val KEY_PAIRING_MODE_ENABLED = "pairing_mode_enabled"
 
     /** With controller + shortcuts step; [pageCount] is 5 for host, 6 for controller. */
     const val PAGE_COUNT_MAX = 6
@@ -89,7 +87,7 @@ object OnboardingV2 {
             .putInt(KEY_STATE, -1)
             .putString(KEY_MODE, MODE_CONTROLLER)
             .putBoolean(KEY_USE_SIMPLE_HOME, true)
-            .putBoolean(KEY_PAIRING_MODE_ENABLED, false)
+            // Do not clear pairing mode here: host devices need it on for nearby pairing; default from AppPrefs is true.
             .commit()
     }
 

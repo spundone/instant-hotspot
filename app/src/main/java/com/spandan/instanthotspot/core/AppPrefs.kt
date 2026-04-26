@@ -91,10 +91,11 @@ object AppPrefs {
     }
 
     fun setPairingModeEnabled(context: Context, enabled: Boolean) {
+        // commit() so HostBleService / BLE paths see the new value on the very next GATT read.
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_PAIRING_MODE_ENABLED, enabled)
-            .apply()
+            .commit()
     }
 
     fun isHostServiceActive(context: Context): Boolean {

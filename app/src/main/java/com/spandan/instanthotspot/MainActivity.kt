@@ -82,6 +82,8 @@ class MainActivity : AppCompatActivity() {
     private var btnConfirmPairing: Button? = null
     private var btnHostApproveCode: Button? = null
     private var btnTogglePairingMode: Button? = null
+    /** Same action as [btnTogglePairingMode] on the Hotspot tab; always visible on Pair. */
+    private var btnHostPairingModeToggle: Button? = null
     private var btnHostReAdvertise: Button? = null
     private var btnStartPairing: Button? = null
     private var btnSaveManualSecret: Button? = null
@@ -469,6 +471,7 @@ class MainActivity : AppCompatActivity() {
         hostPairedDeviceText = findViewById(R.id.hostPairedDeviceText)
         btnHostApproveCode = findViewById(R.id.btnHostApproveCode)
         btnTogglePairingMode = findViewById(R.id.btnTogglePairingMode)
+        btnHostPairingModeToggle = findViewById(R.id.btnHostPairingModeToggle)
         btnHostReAdvertise = findViewById(R.id.btnHostReAdvertise)
         hostDebugLogText = findViewById(R.id.hostDebugLogText)
         btnHostClearLogs = findViewById(R.id.btnHostClearLogs)
@@ -490,6 +493,7 @@ class MainActivity : AppCompatActivity() {
 
         btnHostApproveCode?.setOnClickListener { approveHostPendingCode() }
         btnTogglePairingMode?.setOnClickListener { toggleHostPairingMode() }
+        btnHostPairingModeToggle?.setOnClickListener { toggleHostPairingMode() }
         btnHostReAdvertise?.setOnClickListener { forceHostReAdvertise() }
         btnHostClearLogs?.setOnClickListener { clearLogs() }
         btnUnpairHost?.setOnClickListener { unpairAsHost() }
@@ -710,11 +714,13 @@ class MainActivity : AppCompatActivity() {
             false -> getString(R.string.root_status_denied)
             null -> getString(R.string.root_status_unknown)
         }
-        btnTogglePairingMode?.text = if (pairingModeEnabled) {
+        val pairingBtnText = if (pairingModeEnabled) {
             getString(R.string.disable_pairing_mode)
         } else {
             getString(R.string.enable_pairing_mode)
         }
+        btnTogglePairingMode?.text = pairingBtnText
+        btnHostPairingModeToggle?.text = pairingBtnText
         val pairedController = AppPrefs.lastPairedController(this)
         hostPairedDeviceText?.text = if (pairedController.isNullOrBlank()) {
             getString(R.string.host_paired_device_none)
