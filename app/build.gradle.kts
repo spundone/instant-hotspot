@@ -13,8 +13,8 @@ android {
         applicationId = "com.spandan.instanthotspot"
         minSdk = 29
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.5.0"
+        versionCode = 8
+        versionName = "0.6.0"
         val gitSha = providers.exec {
             commandLine("git", "rev-parse", "--short=8", "HEAD")
         }.standardOutput.asText.get().trim().ifBlank { "dev" }
