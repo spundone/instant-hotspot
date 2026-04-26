@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -39,6 +38,13 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         override fun run() {
             if (!isResumed) return
             if (isHost()) refreshHost()
+            handler.postDelayed(this, 2500L)
+        }
+    }
+    private val controllerRefresh = object : Runnable {
+        override fun run() {
+            if (!isResumed) return
+            if (!isHost()) updatePairedBanner()
             handler.postDelayed(this, 2500L)
         }
     }
@@ -86,22 +92,12 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
             hint.setText(R.string.ob_pairing_hint_controller)
             hostCard.visibility = View.GONE
             ctrlCard.visibility = View.VISIBLE
-            val save = view.findViewById<MaterialButton>(R.id.obcSaveSecret)
             val start = view.findViewById<MaterialButton>(R.id.obcStart)
             val confirm = view.findViewById<MaterialButton>(R.id.obcConfirm)
-            val sec = view.findViewById<TextInputEditText>(R.id.obcSecret)
-            save.setOnClickListener { saveManual(sec) }
             start.setOnClickListener { startPairing(confirm) }
             confirm.setOnClickListener { confirmPairing(confirm) }
-            sec.setOnEditorActionListener { _, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    saveManual(sec)
-                    true
-                } else {
-                    false
-                }
-            }
         }
+        updatePairedBanner()
     }
 
     private fun isHost(): Boolean = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
@@ -115,14 +111,42 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
             }
             requireContext().startService(Intent(requireContext(), HostBleService::class.java))
             handler.removeCallbacks(hostRefresh)
+            handler.removeCallbacks(controllerRefresh)
             handler.post(hostRefresh)
             refreshHost()
+        } else {
+            handler.removeCallbacks(hostRefresh)
+            handler.removeCallbacks(controllerRefresh)
+            updatePairedBanner()
+            handler.post(controllerRefresh)
         }
     }
 
     override fun onPause() {
         handler.removeCallbacks(hostRefresh)
+        handler.removeCallbacks(controllerRefresh)
         super.onPause()
+    }
+
+    private fun updatePairedBanner() {
+        val b = requireView().findViewById<TextView>(R.id.obPairedStatusBanner)
+        val ctx = requireContext()
+        if (isHost()) {
+            val name = AppPrefs.lastPairedController(ctx)
+            b.text = if (name.isNullOrBlank()) {
+                getString(R.string.host_paired_device_none)
+            } else {
+                getString(R.string.host_paired_device_value, name)
+            }
+        } else {
+            val paired = AppPrefs.isClientPaired(ctx)
+            val connected = AppPrefs.isHostReachableRecently(ctx)
+            b.text = when {
+                !paired -> getString(R.string.client_status_not_paired)
+                connected -> getString(R.string.client_status_paired_connected)
+                else -> getString(R.string.client_status_paired_disconnected)
+            }
+        }
     }
 
     private fun refreshHost() {
@@ -148,15 +172,13 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
         v.findViewById<MaterialButton>(R.id.obhBtnApprove).isEnabled = !p.isNullOrBlank() && p != AppPrefs.approvedPairCode(
             requireContext(),
         )
-        v.findViewById<TextView>(R.id.obhPairedC).text = AppPrefs.lastPairedController(requireContext())?.let {
-            getString(R.string.host_paired_device_value, it)
-        } ?: getString(R.string.host_paired_device_none)
         val on = AppPrefs.isPairingModeEnabled(requireContext())
         v.findViewById<MaterialButton>(R.id.obhBtnTogglePair).text = if (on) {
             getString(R.string.disable_pairing_mode)
         } else {
             getString(R.string.enable_pairing_mode)
         }
+        updatePairedBanner()
     }
 
     private fun toggleHostPairing() {
@@ -205,19 +227,6 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
                 getString(R.string.host_pairing_title),
             ),
         )
-    }
-
-    private fun saveManual(sec: TextInputEditText) {
-        val t = sec.text?.toString()?.trim().orEmpty()
-        if (t.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.secret_empty, Toast.LENGTH_SHORT).show()
-            return
-        }
-        AppPrefs.setSharedSecret(requireContext(), t)
-        AppPrefs.setClientPaired(requireContext(), true)
-        AppPrefs.setLastPairedHost(requireContext(), "manual-secret")
-        DebugLog.append(requireContext(), "OB", "Manual pair in onboarding")
-        Toast.makeText(requireContext(), R.string.manual_pair_saved, Toast.LENGTH_SHORT).show()
     }
 
     private fun startPairing(confirmBtn: MaterialButton) {
@@ -271,6 +280,7 @@ class OnboardingPairingFragment : Fragment(R.layout.fragment_onboarding_pairing)
                 AppPrefs.setClientPaired(requireContext(), true)
                 activeSession = null
                 requireView().findViewById<TextView>(R.id.obcPairCode).text = getString(R.string.pair_code_none)
+                updatePairedBanner()
                 Toast.makeText(requireContext(), R.string.pairing_confirmed, Toast.LENGTH_SHORT).show()
             }
         }

@@ -51,6 +51,14 @@
             </RadioGroup>
         </com.google.android.material.card.MaterialCardView>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/obDownloadMagiskReleases"
+            style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/ob_download_magisk_releases" />
+
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/obHostPrereqCard"
             android:layout_width="match_parent"

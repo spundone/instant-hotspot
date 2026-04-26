@@ -6,9 +6,9 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.spandan.instanthotspot.core.OnboardingV2
 
 class OnboardingPagerAdapter(
-    activity: FragmentActivity,
-) : FragmentStateAdapter(activity) {
-    override fun getItemCount(): Int = OnboardingV2.PAGE_COUNT
+    private val hostActivity: FragmentActivity,
+) : FragmentStateAdapter(hostActivity) {
+    override fun getItemCount(): Int = OnboardingV2.pageCount(hostActivity)
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {

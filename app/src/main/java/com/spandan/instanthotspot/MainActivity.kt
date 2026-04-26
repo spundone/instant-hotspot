@@ -43,10 +43,14 @@ import com.spandan.instanthotspot.controller.PairingStartError
 import com.spandan.instanthotspot.controller.PairingSession
 import com.spandan.instanthotspot.core.HotspotConfigParser
 import com.spandan.instanthotspot.core.HotspotController
+import com.spandan.instanthotspot.core.LocalAlertPlayer
+import com.spandan.instanthotspot.core.NetworkPing
+import com.spandan.instanthotspot.core.NetworkRadioTuning
 import com.spandan.instanthotspot.core.HostOnboarding
 import com.spandan.instanthotspot.core.HostCompatSummary
 import com.spandan.instanthotspot.core.AppTooling
 import com.spandan.instanthotspot.core.ProjectInfo
+import com.spandan.instanthotspot.core.WifiStatusHelper
 import com.spandan.instanthotspot.core.UpdateChecker
 import com.spandan.instanthotspot.core.RandomSecret
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -131,7 +135,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupOnboardingUi() {
         val ver = findViewById<TextView>(R.id.onboardingVersion)
-        val step = findViewById<TextView>(R.id.onboardingStepLabel)
         runCatching {
             val p = packageManager.getPackageInfo(packageName, 0)
             val vn = p.versionName ?: "?"
@@ -143,26 +146,21 @@ class MainActivity : AppCompatActivity() {
         pager.adapter = OnboardingPagerAdapter(this)
         var page = OnboardingV2.currentPageOrDone(this)
         if (page < 0) page = 0
-        pager.setCurrentItem(page.coerceIn(0, OnboardingV2.PAGE_COUNT - 1), false)
-        val back = findViewById<Button>(R.id.onboardingBack)
-        val next = findViewById<Button>(R.id.onboardingNext)
-        fun updateNavLabels(p: Int) {
-            OnboardingV2.setPage(this, p)
-            step.text = getString(R.string.onboarding_step, p + 1, OnboardingV2.PAGE_COUNT)
-            back.isEnabled = p > 0
-            next.text = if (p >= OnboardingV2.PAGE_COUNT - 1) {
-                getString(R.string.onboarding_finish)
-            } else {
-                getString(R.string.onboarding_next)
-            }
+        val lastIndex = (OnboardingV2.pageCount(this) - 1).coerceAtLeast(0)
+        page = page.coerceIn(0, lastIndex)
+        if (OnboardingV2.currentPageOrDone(this) != page) {
+            OnboardingV2.setPage(this, page)
         }
-        updateNavLabels(pager.currentItem)
+        pager.setCurrentItem(page, false)
+        updateOnboardingNavForPage(pager.currentItem)
         pager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
-                updateNavLabels(position)
+                updateOnboardingNavForPage(position)
                 refreshOnboardingNextState()
             }
         })
+        val back = findViewById<Button>(R.id.onboardingBack)
+        val next = findViewById<Button>(R.id.onboardingNext)
         back.setOnClickListener {
             if (pager.currentItem > 0) {
                 pager.setCurrentItem(pager.currentItem - 1, true)
@@ -171,17 +169,48 @@ class MainActivity : AppCompatActivity() {
             }
         }
         next.setOnClickListener {
-            if (pager.currentItem < OnboardingV2.PAGE_COUNT - 1) {
+            val total = OnboardingV2.pageCount(this@MainActivity)
+            if (pager.currentItem < total - 1) {
                 if (pager.currentItem == 1 && isOnboardingHostPrereqBlocking()) {
                     Toast.makeText(this, getString(R.string.ob_host_prereq_block_next), Toast.LENGTH_LONG).show()
                     return@setOnClickListener
                 }
                 pager.setCurrentItem(pager.currentItem + 1, true)
             } else {
-                OnboardingV2.markFlowComplete(this, currentMode() == MODE_CONTROLLER)
+                OnboardingV2.markFlowComplete(this)
                 recreate()
             }
         }
+        refreshOnboardingNextState()
+    }
+
+    private fun updateOnboardingNavForPage(p: Int) {
+        val step = findViewById<TextView>(R.id.onboardingStepLabel) ?: return
+        val back = findViewById<Button>(R.id.onboardingBack) ?: return
+        val next = findViewById<Button>(R.id.onboardingNext) ?: return
+        val total = OnboardingV2.pageCount(this)
+        OnboardingV2.setPage(this, p)
+        step.text = getString(R.string.onboarding_step, p + 1, total)
+        back.isEnabled = p > 0
+        next.text = if (p >= total - 1) {
+            getString(R.string.onboarding_finish)
+        } else {
+            getString(R.string.onboarding_next)
+        }
+    }
+
+    /**
+     * Host vs controller on the role step changes total step count (controller-only shortcuts page).
+     */
+    fun onOnboardingModeChanged() {
+        if (!inOnboarding) return
+        val pager = findViewById<ViewPager2>(R.id.onboardingPager) ?: return
+        val newCount = OnboardingV2.pageCount(this)
+        val newIndex = pager.currentItem.coerceIn(0, (newCount - 1).coerceAtLeast(0))
+        pager.adapter = OnboardingPagerAdapter(this)
+        pager.setCurrentItem(newIndex, false)
+        OnboardingV2.setPage(this, newIndex)
+        updateOnboardingNavForPage(pager.currentItem)
         refreshOnboardingNextState()
     }
 
@@ -1103,6 +1132,12 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.btn_battery_optimization),
             getString(R.string.btn_app_info),
             getString(R.string.btn_copy_debug_log),
+            getString(R.string.btn_tools_5g_only),
+            getString(R.string.btn_tools_revert_network),
+            getString(R.string.btn_tools_ring_here),
+            getString(R.string.btn_tools_ring_host),
+            getString(R.string.btn_tools_ping),
+            getString(R.string.btn_tools_wifi_details),
         )
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.project_tools_title)
@@ -1120,9 +1155,136 @@ class MainActivity : AppCompatActivity() {
                         getString(R.string.verbose_debug_title),
                         DebugLog.read(this),
                     )
+                    8 -> runTools5gOnly()
+                    9 -> runToolsRevertNetworkMode()
+                    10 -> {
+                        LocalAlertPlayer.playAttention(this)
+                        Toast.makeText(this, R.string.btn_tools_ring_here, Toast.LENGTH_SHORT).show()
+                    }
+                    11 -> runToolsRingHost()
+                    12 -> runToolsPing()
+                    13 -> runToolsWifiDetails()
                 }
             }
             .setNegativeButton(R.string.update_dismiss, null)
+            .show()
+    }
+
+    private fun runTools5gOnly() {
+        if (currentMode() == MODE_HOST) {
+            if (!HotspotController.hasRootPermission()) {
+                Toast.makeText(this, R.string.tools_5g_root, Toast.LENGTH_LONG).show()
+                return
+            }
+            if (NetworkRadioTuning.apply5gOnly(this)) {
+                Toast.makeText(
+                    this,
+                    getString(R.string.tools_5g_applied) + "\n" + getString(R.string.tools_5g_note),
+                    Toast.LENGTH_LONG,
+                ).show()
+            } else {
+                Toast.makeText(this, R.string.tools_5g_failed, Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        if (!AppPrefs.isClientPaired(this) || currentMode() != MODE_CONTROLLER) {
+            Toast.makeText(this, R.string.tools_paired_host_required, Toast.LENGTH_LONG).show()
+            return
+        }
+        ControllerCommandSender.sendAsync(this, HotspotCommand.NET_5G_ONLY) { s ->
+            when (s) {
+                CommandSendStatus.SUCCESS -> {
+                    AppPrefs.markHostReachableNow(this@MainActivity)
+                    Toast.makeText(
+                        this@MainActivity,
+                        R.string.tools_5g_applied,
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+                CommandSendStatus.NOT_PAIRED ->
+                    Toast.makeText(this@MainActivity, R.string.tools_paired_host_required, Toast.LENGTH_LONG).show()
+                CommandSendStatus.BLUETOOTH_OFF -> Toast.makeText(this@MainActivity, R.string.tile_toast_bt_off, Toast.LENGTH_LONG).show()
+                CommandSendStatus.HOST_NOT_FOUND -> Toast.makeText(this@MainActivity, R.string.tile_toast_host_missing, Toast.LENGTH_LONG).show()
+                CommandSendStatus.SEND_FAILED -> Toast.makeText(this@MainActivity, R.string.tools_5g_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun runToolsRevertNetworkMode() {
+        if (currentMode() == MODE_HOST) {
+            if (!HotspotController.hasRootPermission()) {
+                Toast.makeText(this, R.string.tools_5g_root, Toast.LENGTH_LONG).show()
+                return
+            }
+            if (NetworkRadioTuning.revertPreferredMode(this)) {
+                Toast.makeText(this, R.string.tools_revert_ok, Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, R.string.tools_revert_nothing, Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+        if (!AppPrefs.isClientPaired(this) || currentMode() != MODE_CONTROLLER) {
+            Toast.makeText(this, R.string.tools_paired_host_required, Toast.LENGTH_LONG).show()
+            return
+        }
+        ControllerCommandSender.sendAsync(this, HotspotCommand.NET_REVERT_MODE) { s ->
+            when (s) {
+                CommandSendStatus.SUCCESS -> {
+                    AppPrefs.markHostReachableNow(this@MainActivity)
+                    Toast.makeText(this@MainActivity, R.string.tools_revert_ok, Toast.LENGTH_LONG).show()
+                }
+                CommandSendStatus.NOT_PAIRED ->
+                    Toast.makeText(this@MainActivity, R.string.tools_paired_host_required, Toast.LENGTH_LONG).show()
+                CommandSendStatus.BLUETOOTH_OFF -> Toast.makeText(this@MainActivity, R.string.tile_toast_bt_off, Toast.LENGTH_LONG).show()
+                CommandSendStatus.HOST_NOT_FOUND -> Toast.makeText(this@MainActivity, R.string.tile_toast_host_missing, Toast.LENGTH_LONG).show()
+                CommandSendStatus.SEND_FAILED -> Toast.makeText(this@MainActivity, R.string.tools_revert_nothing, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun runToolsRingHost() {
+        if (!AppPrefs.isClientPaired(this) || currentMode() != MODE_CONTROLLER) {
+            Toast.makeText(this, R.string.tools_paired_host_required, Toast.LENGTH_LONG).show()
+            return
+        }
+        ControllerCommandSender.sendAsync(this, HotspotCommand.RING_REMOTE) { s ->
+            when (s) {
+                CommandSendStatus.SUCCESS -> {
+                    AppPrefs.markHostReachableNow(this@MainActivity)
+                    MaterialAlertDialogBuilder(this@MainActivity)
+                        .setTitle(R.string.tools_ring_host_title)
+                        .setMessage(R.string.tools_ring_host_ok)
+                        .setPositiveButton(R.string.update_ok, null)
+                        .show()
+                }
+                CommandSendStatus.NOT_PAIRED ->
+                    Toast.makeText(this@MainActivity, R.string.tools_paired_host_required, Toast.LENGTH_LONG).show()
+                CommandSendStatus.BLUETOOTH_OFF -> Toast.makeText(this@MainActivity, R.string.tile_toast_bt_off, Toast.LENGTH_LONG).show()
+                CommandSendStatus.HOST_NOT_FOUND -> Toast.makeText(this@MainActivity, R.string.tile_toast_host_missing, Toast.LENGTH_LONG).show()
+                CommandSendStatus.SEND_FAILED -> Toast.makeText(this@MainActivity, R.string.tile_toast_send_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun runToolsPing() {
+        backgroundExecutor.execute {
+            val out = NetworkPing.runPing4("1.1.1.1")
+            runOnUiThread {
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.tools_ping_title)
+                    .setMessage(out.ifBlank { "—" })
+                    .setPositiveButton(R.string.update_ok, null)
+                    .show()
+            }
+        }
+    }
+
+    private fun runToolsWifiDetails() {
+        val msg = WifiStatusHelper.detailsBlock(this)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.tools_wifi_title)
+            .setMessage(msg)
+            .setPositiveButton(R.string.update_ok, null)
             .show()
     }
 

@@ -56,15 +56,22 @@
             style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             android:text="@string/manual_pair_save" />
+
+        <TextView
+            style="@style/Widget.IH.Overline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/m3_subheader_status" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnStartPairing"
             style="@style/Widget.InstantHotspot.Button.Expressive"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             android:text="@string/start_nearby_pairing" />
 
         <com.google.android.material.button.MaterialButton
@@ -72,7 +79,7 @@
             style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             android:text="@string/scan_nearby_hosts" />
 
         <TextView
@@ -92,6 +99,15 @@
             android:background="@drawable/bg_status_pill"
             android:text="@string/pair_code_none" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnConfirmPairing"
+            style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:enabled="false"
+            android:text="@string/confirm_pairing" />
+
         <TextView
             android:id="@+id/controllerPairedDeviceText"
             style="@style/TextAppearance.Material3.BodyMedium"
@@ -102,20 +118,11 @@
             android:text="@string/controller_paired_device_none" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnConfirmPairing"
-            style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:enabled="false"
-            android:text="@string/confirm_pairing" />
-
-        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUnpairController"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="10dp"
             android:text="@string/unpair_or_reset_controller" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -27,6 +27,19 @@
             android:lineSpacingExtra="2dp"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
+        <TextView
+            android:id="@+id/obPairedStatusBanner"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_status_pill"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="10dp"
+            android:textColor="?attr/colorOnSurface" />
+
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/obHostPairCard"
             android:layout_width="match_parent"
@@ -110,14 +123,6 @@
                     android:layout_marginTop="6dp"
                     android:background="@drawable/bg_status_pill" />
 
-                <TextView
-                    android:id="@+id/obhPairedC"
-                    style="@style/TextAppearance.Material3.BodySmall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_status_pill" />
-
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obhBtnTogglePair"
                     style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
@@ -166,30 +171,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/controller_pairing_title" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:hint="@string/pairing_secret_hint"
-                    app:boxStrokeColor="?attr/colorPrimary">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/obcSecret"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textNoSuggestions"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/obcSaveSecret"
-                    style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/manual_pair_save" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/obcStart"

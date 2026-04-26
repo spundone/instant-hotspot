@@ -1,70 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1A1A1A"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="10dp">
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingBottom="2dp"
-        android:text="@string/widget_button"
-        android:textColor="#B3FFFFFF"
-        android:textSize="12sp" />
-
-    <TextView
-        android:id="@+id/widgetPairedName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:paddingBottom="2dp"
-        android:textColor="#8CFFFFFF"
-        android:textSize="11sp" />
-
-    <TextView
-        android:id="@+id/widgetApState"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingBottom="4dp"
-        android:textColor="#8CFFFFFF"
-        android:textSize="11sp" />
+    android:padding="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:layout_height="match_parent"
+        android:background="@drawable/widget_m3_container"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingStart="10dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="10dp">
 
         <TextView
-            android:id="@+id/widgetHotspotOn"
-            android:layout_width="0dp"
+            style="@style/TextAppearance.Material3.LabelMedium"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="4dp"
-            android:layout_weight="1"
-            android:background="#2D2D2D"
-            android:gravity="center"
-            android:minHeight="40dp"
-            android:padding="8dp"
-            android:text="@string/widget_hotspot_on"
-            android:textColor="#CCFFAC"
-            android:textStyle="bold" />
+            android:paddingBottom="4dp"
+            android:text="@string/widget_button"
+            android:textAllCaps="true"
+            android:textColor="@color/brand_accent" />
 
         <TextView
-            android:id="@+id/widgetHotspotOff"
-            android:layout_width="0dp"
+            android:id="@+id/widgetPairedName"
+            style="@style/TextAppearance.Material3.BodySmall"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_weight="1"
-            android:background="#2D2D2D"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingBottom="2dp"
+            android:textColor="#B3FFFFFF" />
+
+        <TextView
+            android:id="@+id/widgetApState"
+            style="@style/TextAppearance.Material3.BodySmall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:textColor="#8CFFFFFF" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="center"
-            android:minHeight="40dp"
-            android:padding="8dp"
-            android:text="@string/widget_hotspot_off"
-            android:textColor="#FFABAB"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <TextView
+                android:id="@+id/widgetHotspotOn"
+                style="@style/TextAppearance.Material3.LabelLarge"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_m3_btn_on"
+                android:gravity="center"
+                android:minHeight="@dimen/ih_button_min_h"
+                android:paddingStart="6dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="8dp"
+                android:text="@string/widget_hotspot_on"
+                android:textAllCaps="true"
+                android:textColor="@color/brand_accent" />
+
+            <TextView
+                android:id="@+id/widgetHotspotOff"
+                style="@style/TextAppearance.Material3.LabelLarge"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_m3_btn_off"
+                android:gravity="center"
+                android:minHeight="@dimen/ih_button_min_h"
+                android:paddingStart="6dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="8dp"
+                android:text="@string/widget_hotspot_off"
+                android:textAllCaps="true"
+                android:textColor="#FFABAB" />
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>

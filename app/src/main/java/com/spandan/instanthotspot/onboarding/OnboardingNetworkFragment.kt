@@ -14,12 +14,18 @@ import com.spandan.instanthotspot.MainActivity
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.HostCompatSummary
-import com.spandan.instanthotspot.core.WifiStatusHelper
+import com.spandan.instanthotspot.core.HotspotConfigParser
+import com.spandan.instanthotspot.core.HotspotController
+import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 
 class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network) {
     private val prefsName = "instant_hotspot_prefs"
     private val keyMode = "mode"
     private val handler = Handler(Looper.getMainLooper())
+    private var backgroundExecutor: ExecutorService? = null
+    @Volatile
+    private var snapshotGeneration: Long = 0L
     private val hostRefresh = object : Runnable {
         override fun run() {
             if (isResumed && isHost()) {
@@ -33,6 +39,16 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
 
     private fun isHost() = requireContext().getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         .getString(keyMode, MainActivity.MODE_CONTROLLER) == MainActivity.MODE_HOST
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        backgroundExecutor = Executors.newSingleThreadExecutor()
+    }
+
+    override fun onDestroy() {
+        backgroundExecutor?.shutdown()
+        super.onDestroy()
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val title = view.findViewById<TextView>(R.id.obNetPageTitle)
@@ -65,36 +81,67 @@ class OnboardingNetworkFragment : Fragment(R.layout.fragment_onboarding_network)
         super.onPause()
     }
 
+    /**
+     * Hotspot + device install details (not the phone’s *connected* Wi‑Fi network).
+     */
+    private fun buildHostHotspotSnapshotText(ctx: Context): String = buildString {
+        val apProbe = AppPrefs.lastApStateLine(ctx)
+        if (apProbe.isNullOrBlank()) {
+            appendLine(ctx.getString(R.string.ob_network_host_ap_none))
+        } else {
+            appendLine(ctx.getString(R.string.ob_network_ap_probe, apProbe))
+        }
+        val raw = HotspotController.hotspotConfigSummary()
+        val creds = HotspotConfigParser.parseSsidPassword(raw)
+        if (creds != null) {
+            appendLine(ctx.getString(R.string.ob_network_hotspot_ssid, creds.ssid))
+            appendLine(ctx.getString(R.string.ob_network_hotspot_password, creds.password))
+        } else {
+            val label = ctx.getString(R.string.ob_network_hotspot_config_label)
+            appendLine(
+                if (raw.isNotBlank()) {
+                    "$label:\n$raw"
+                } else {
+                    label + ": (empty)"
+                },
+            )
+        }
+        appendLine()
+        append(HostCompatSummary.build(ctx))
+    }
+
     private fun refreshHostNetworkSnapshot() {
         val v = view ?: return
         val out = v.findViewById<TextView>(R.id.obHostNetworkDetail) ?: return
-        val ctx = requireContext()
-        val apProbe = AppPrefs.lastApStateLine(ctx)
-        val apLine = if (apProbe.isNullOrBlank()) {
-            getString(R.string.ob_network_host_ap_none)
-        } else {
-            getString(R.string.ob_network_ap_probe, apProbe)
-        }
-        out.text = buildString {
-            appendLine(WifiStatusHelper.line(ctx))
-            appendLine(apLine)
-            appendLine()
-            append(HostCompatSummary.build(ctx))
+        val appCtx = requireContext().applicationContext
+        val gen = ++snapshotGeneration
+        backgroundExecutor?.execute {
+            val text = buildHostHotspotSnapshotText(appCtx)
+            handler.post {
+                if (!isResumed) return@post
+                if (gen != snapshotGeneration) return@post
+                out.text = text
+            }
         }
     }
 
     private fun shareHostSnapshot() {
-        refreshHostNetworkSnapshot()
-        val text = view?.findViewById<TextView>(R.id.obHostNetworkDetail)?.text?.toString().orEmpty()
-        if (text.isBlank()) return
-        startActivity(
-            Intent.createChooser(
-                Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, text)
-                },
-                getString(R.string.ob_network_page_title_host),
-            ),
-        )
+        val appCtx = requireContext().applicationContext
+        backgroundExecutor?.execute {
+            val text = buildHostHotspotSnapshotText(appCtx)
+            if (text.isBlank()) return@execute
+            handler.post {
+                if (!isResumed) return@post
+                startActivity(
+                    Intent.createChooser(
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        },
+                        getString(R.string.ob_network_page_title_host),
+                    ),
+                )
+            }
+        }
     }
 }

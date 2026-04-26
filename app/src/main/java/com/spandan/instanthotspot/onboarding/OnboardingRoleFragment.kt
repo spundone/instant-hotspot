@@ -12,7 +12,9 @@ import com.google.android.material.card.MaterialCardView
 import com.spandan.instanthotspot.MainActivity
 import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.core.AppPrefs
+import com.spandan.instanthotspot.core.AppTooling
 import com.spandan.instanthotspot.core.HostOnboarding
+import com.spandan.instanthotspot.core.ProjectInfo
 import com.spandan.instanthotspot.core.RandomSecret
 import com.spandan.instanthotspot.host.HostBleService
 
@@ -37,6 +39,9 @@ class OnboardingRoleFragment : Fragment(R.layout.fragment_onboarding_role) {
         }
         g.setOnCheckedChangeListener { _, _ ->
             applyFromRadio()
+        }
+        view.findViewById<MaterialButton>(R.id.obDownloadMagiskReleases).setOnClickListener {
+            AppTooling.openUrl(requireContext(), ProjectInfo.releasesPageUrl())
         }
         val prereq = view.findViewById<MaterialCardView>(R.id.obHostPrereqCard)
         val verify = view.findViewById<MaterialButton>(R.id.obVerifyHostSetup)
@@ -75,7 +80,7 @@ class OnboardingRoleFragment : Fragment(R.layout.fragment_onboarding_role) {
                     commitHostMode()
                     val prereq = requireView().findViewById<MaterialCardView>(R.id.obHostPrereqCard)
                     refreshPrereqUi(prereq, status)
-                    (activity as? MainActivity)?.refreshOnboardingNextState()
+                    (activity as? MainActivity)?.onOnboardingModeChanged()
                 } else {
                     status.setText(R.string.ob_host_prereq_status_fail)
                 }
@@ -110,7 +115,7 @@ class OnboardingRoleFragment : Fragment(R.layout.fragment_onboarding_role) {
             ctx.stopService(Intent(ctx, HostBleService::class.java))
         }
         refreshPrereqUi(prereq, status)
-        (activity as? MainActivity)?.refreshOnboardingNextState()
+        (activity as? MainActivity)?.onOnboardingModeChanged()
     }
 
     private fun commitHostMode() {

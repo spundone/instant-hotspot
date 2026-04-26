@@ -26,51 +26,67 @@
         android:fillViewport="true"
         android:padding="@dimen/ih_screen_padding">
 
-        <LinearLayout
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+            app:cardCornerRadius="@dimen/ih_card_corner"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp">
 
-            <com.google.android.material.card.MaterialCardView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-                app:cardCornerRadius="@dimen/ih_card_corner"
-                app:cardElevation="0dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:strokeWidth="1dp">
+                android:orientation="vertical"
+                android:padding="@dimen/ih_card_inner_pad">
 
-                <LinearLayout
+                <TextView
+                    style="@style/Widget.IH.Overline"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/ih_card_inner_pad">
+                    android:text="@string/simple_overline" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSimpleOn"
-                        style="@style/Widget.InstantHotspot.Button.Expressive"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/client_hotspot_on" />
+                <TextView
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/m3_controller_remote_hotspot" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSimpleOff"
-                        style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="@string/client_hotspot_off" />
+                <TextView
+                    style="@style/TextAppearance.Material3.BodySmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/simple_subtitle"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
-                    <TextView
-                        android:id="@+id/simpleStatusText"
-                        style="@style/TextAppearance.Material3.BodySmall"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:background="@drawable/bg_status_pill"
-                        android:padding="10dp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-        </LinearLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSimpleOn"
+                    style="@style/Widget.InstantHotspot.Button.Expressive"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/client_hotspot_on" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSimpleOff"
+                    style="@style/Widget.InstantHotspot.Button.Expressive.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/client_hotspot_off" />
+
+                <TextView
+                    android:id="@+id/simpleStatusText"
+                    style="@style/TextAppearance.Material3.BodySmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_status_pill"
+                    android:padding="10dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>
