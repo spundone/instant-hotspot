@@ -24,6 +24,46 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ih_section_gap"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+        app:cardCornerRadius="@dimen/ih_card_corner"
+        app:cardElevation="0dp"
+        app:strokeColor="?attr/colorOutline"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/ih_card_inner_pad">
+
+            <TextView
+                style="@style/Widget.IH.Overline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/m3_tools_section_remote" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnOpenRemoteTools"
+                style="@style/Widget.InstantHotspot.Button.Expressive"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/btn_open_remote_tools" />
+
+            <TextView
+                style="@style/TextAppearance.Material3.BodySmall"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/btn_open_remote_tools_sub"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ih_section_gap"
         app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
         app:cardCornerRadius="@dimen/ih_card_corner"
         app:cardElevation="0dp"

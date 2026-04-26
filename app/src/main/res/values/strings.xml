@@ -36,6 +36,13 @@
     <string name="m3_tools_section_project">Project &amp; repository</string>
     <string name="m3_tools_section_system">System shortcuts</string>
     <string name="m3_tools_section_diagnostics">Diagnostics</string>
+    <string name="m3_tools_section_remote">Remote &amp; network</string>
+    <string name="btn_open_remote_tools">5G, ring, ping, Wi‑Fi,…</string>
+    <string name="btn_open_remote_tools_sub">Same actions as the overflow menu: Project, updates &amp; tools.</string>
+    <string name="simple_pairing_title">Pairing passphrase</string>
+    <string name="simple_pairing_body">Use the same phrase as the host, then save. For nearby pairing and more, open the full console (⋮).</string>
+    <string name="host_set_passphrase">Save passphrase on this device</string>
+    <string name="host_passphrase_updated">Passphrase saved for this host</string>
     <string name="m3_subheader_status">Status</string>
     <string name="m3_host_hotspot_headline">Tethering &amp; advertising</string>
     <string name="m3_subheader_host_config">From host (after sync)</string>

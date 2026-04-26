@@ -27,6 +27,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.spandan.instanthotspot.main.ControllerMainConsolePagerAdapter
@@ -63,10 +64,12 @@ class MainActivity : AppCompatActivity() {
     private var inOnboarding: Boolean = false
     private var useSimpleLayout: Boolean = false
     private var hostSecretText: TextView? = null
+    private var hostSecretInput: TextInputEditText? = null
     private var hostPendingCodeText: TextView? = null
     private var hostPairingStatusText: TextView? = null
     private var hostRootStatusText: TextView? = null
     private var hostPairedDeviceText: TextView? = null
+    /** Full-console controller field, or [R.id.simpleSecretInput] in simple home. */
     private var secretInput: EditText? = null
     private var controllerPairCodeText: TextView? = null
     private var controllerPairedDeviceText: TextView? = null
@@ -280,6 +283,8 @@ class MainActivity : AppCompatActivity() {
                 R.string.toast_client_hotspot_off_sent,
             )
         }
+        secretInput = findViewById(R.id.simpleSecretInput)
+        findViewById<MaterialButton>(R.id.btnSaveSimpleSecret).setOnClickListener { saveManualSecret() }
         renderSimpleHome()
     }
 
@@ -292,6 +297,11 @@ class MainActivity : AppCompatActivity() {
             !paired -> getString(R.string.client_status_not_paired)
             connected -> getString(R.string.client_status_paired_connected)
             else -> getString(R.string.client_status_paired_disconnected)
+        }
+        val hasCustom = AppPrefs.hasNonDefaultSecret(this)
+        val secret = AppPrefs.sharedSecret(this)
+        if (secretInput?.text.isNullOrBlank()) {
+            secretInput?.setText(if (hasCustom) secret else "")
         }
     }
 
@@ -438,6 +448,9 @@ class MainActivity : AppCompatActivity() {
                 DebugLog.read(this),
             )
         }
+        findViewById<MaterialButton>(R.id.btnOpenRemoteTools)?.setOnClickListener {
+            showProjectToolsDialog()
+        }
     }
 
     private fun wireHostMainConsole() {
@@ -448,6 +461,8 @@ class MainActivity : AppCompatActivity() {
         val host = findViewById<RadioButton>(R.id.radioHost)!!
         val controller = findViewById<RadioButton>(R.id.radioController)!!
         hostSecretText = findViewById(R.id.hostSecretText)
+        hostSecretInput = findViewById(R.id.hostSecretInput)
+        findViewById<MaterialButton>(R.id.btnSaveHostSecret)?.setOnClickListener { saveHostPassphrase() }
         hostPendingCodeText = findViewById(R.id.hostPendingCodeText)
         hostPairingStatusText = findViewById(R.id.hostPairingStatusText)
         hostRootStatusText = findViewById(R.id.hostRootStatusText)
@@ -672,6 +687,9 @@ class MainActivity : AppCompatActivity() {
         val secret = AppPrefs.sharedSecret(this)
         val hasCustom = AppPrefs.hasNonDefaultSecret(this)
         hostSecretText?.text = if (hasCustom) secret else getString(R.string.pairing_not_set)
+        if (hostSecretInput?.text.isNullOrBlank()) {
+            hostSecretInput?.setText(if (hasCustom) secret else "")
+        }
         val pending = AppPrefs.pendingPairCode(this)
         hostPendingCodeText?.text = if (pending.isNullOrBlank()) {
             getString(R.string.pending_code_none)
@@ -892,6 +910,19 @@ class MainActivity : AppCompatActivity() {
         DebugLog.append(this, "CTRL_UI", "Manual/local pair applied with pasted secret")
         renderCurrentSecret()
         Toast.makeText(this, getString(R.string.manual_pair_saved), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun saveHostPassphrase() {
+        val value = hostSecretInput?.text?.toString()?.trim().orEmpty()
+        if (value.isEmpty()) {
+            Toast.makeText(this, getString(R.string.secret_empty), Toast.LENGTH_SHORT).show()
+            return
+        }
+        AppPrefs.setSharedSecret(this, value)
+        startService(Intent(this, HostBleService::class.java))
+        DebugLog.append(this, "HOST_UI", "Host pairing passphrase set from main console")
+        renderCurrentSecret()
+        Toast.makeText(this, R.string.host_passphrase_updated, Toast.LENGTH_SHORT).show()
     }
 
     private fun confirmPairingHandshake() {

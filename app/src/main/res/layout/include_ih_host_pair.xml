@@ -53,6 +53,29 @@
             android:layout_marginTop="8dp"
             android:text="@string/share_host_passphrase" />
 
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:hint="@string/pairing_secret_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/hostSecretInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textNoSuggestions"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSaveHostSecret"
+            style="@style/Widget.InstantHotspot.Button.Expressive.Tonal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/host_set_passphrase" />
+
         <TextView
             android:id="@+id/hostPairCompactHint"
             style="@style/TextAppearance.Material3.BodySmall"
