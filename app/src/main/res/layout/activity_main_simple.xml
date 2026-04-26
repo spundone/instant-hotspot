@@ -25,7 +25,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:fillViewport="true"
-        android:padding="20dp">
+        android:padding="@dimen/ih_screen_padding">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -33,9 +33,25 @@
             android:orientation="vertical">
 
             <TextView
+                style="@style/Widget.IH.Overline"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/m3_hero_kicker" />
+
+            <TextView
+                style="@style/TextAppearance.Material3.HeadlineSmall"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/main_title" />
+
+            <TextView
                 style="@style/TextAppearance.Material3.BodySmall"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:letterSpacing="0.01"
+                android:lineSpacingExtra="2dp"
                 android:text="@string/author_byline"
                 android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -65,9 +81,9 @@
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="@dimen/ih_section_gap"
                 app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-                app:cardCornerRadius="28dp"
+                app:cardCornerRadius="@dimen/ih_card_corner"
                 app:cardElevation="0dp"
                 app:strokeColor="?attr/colorOutlineVariant"
                 app:strokeWidth="1dp">
@@ -76,7 +92,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="@dimen/ih_card_inner_pad">
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSimpleOn"

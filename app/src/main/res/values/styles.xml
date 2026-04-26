@@ -1,20 +1,32 @@
 <resources>
+    <style name="Widget.IH.Overline" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:letterSpacing">0.2</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="Widget.IH.SectionLabel" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <style name="Widget.IH.HeadlineShowcase" parent="TextAppearance.Material3.HeadlineMedium" />
+
     <style name="Widget.InstantHotspot.Button.Expressive" parent="Widget.Material3.Button">
-        <item name="android:minHeight">60dp</item>
+        <item name="android:minHeight">@dimen/ih_button_min_h</item>
         <item name="android:paddingLeft">20dp</item>
         <item name="android:paddingRight">20dp</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.InstantHotspot.Button</item>
     </style>
 
     <style name="Widget.InstantHotspot.Button.Expressive.Outlined" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="android:minHeight">60dp</item>
+        <item name="android:minHeight">@dimen/ih_button_min_h</item>
         <item name="android:paddingLeft">20dp</item>
         <item name="android:paddingRight">20dp</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.InstantHotspot.Button</item>
     </style>
 
     <style name="Widget.InstantHotspot.Button.Expressive.Tonal" parent="Widget.Material3.Button.TonalButton">
-        <item name="android:minHeight">60dp</item>
+        <item name="android:minHeight">@dimen/ih_button_min_h</item>
         <item name="android:paddingLeft">20dp</item>
         <item name="android:paddingRight">20dp</item>
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.InstantHotspot.Button</item>
@@ -22,6 +34,6 @@
 
     <style name="ShapeAppearance.InstantHotspot.Button" parent="ShapeAppearance.Material3.LargeComponent">
         <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">22dp</item>
+        <item name="cornerSize">@dimen/ih_button_corner</item>
     </style>
 </resources>

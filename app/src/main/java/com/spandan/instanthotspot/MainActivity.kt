@@ -10,6 +10,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
+import android.view.animation.PathInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.RadioButton
@@ -19,8 +21,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.view.WindowCompat
+import androidx.transition.TransitionManager
+import com.google.android.material.transition.MaterialFade
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.DebugLog
@@ -30,13 +35,19 @@ import com.spandan.instanthotspot.core.HotspotCommand
 import com.spandan.instanthotspot.controller.BlePairingClient
 import com.spandan.instanthotspot.controller.CommandSendStatus
 import com.spandan.instanthotspot.controller.ControllerCommandSender
+import com.spandan.instanthotspot.controller.ControllerCommandSender.HostDeviceSummary
 import com.spandan.instanthotspot.controller.PairingStartError
 import com.spandan.instanthotspot.controller.PairingSession
+import com.spandan.instanthotspot.core.HotspotConfigParser
 import com.spandan.instanthotspot.core.HotspotController
 import com.spandan.instanthotspot.core.HostCompatSummary
+import com.spandan.instanthotspot.core.AppTooling
+import com.spandan.instanthotspot.core.ProjectInfo
+import com.spandan.instanthotspot.core.UpdateChecker
 import com.spandan.instanthotspot.core.RandomSecret
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.spandan.instanthotspot.host.HostBleService
+import com.spandan.instanthotspot.widget.HotspotWidgetProvider
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
@@ -69,10 +80,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnClientHotspotOn: Button
     private lateinit var btnClientHotspotOff: Button
     private lateinit var btnClientSyncConfig: Button
+    private lateinit var btnScanNearbyHosts: Button
+    private lateinit var btnOpenWifiWithManual: Button
+    private lateinit var controllerSelectedHostText: TextView
+    private lateinit var manualSsidInput: EditText
+    private lateinit var manualPasswordInput: EditText
     private lateinit var btnHostClearLogs: Button
     private lateinit var btnControllerClearLogs: Button
     private lateinit var btnUnpairHost: Button
     private lateinit var btnUnpairController: Button
+    private lateinit var switchHostBondAllowlist: MaterialSwitch
     @Volatile private var activePairingSession: PairingSession? = null
     @Volatile private var pairingStartInProgress = false
     @Volatile private var pairingConfirmInProgress = false
@@ -174,6 +191,10 @@ class MainActivity : AppCompatActivity() {
                     recreate()
                     true
                 }
+                R.id.menu_project_tools -> {
+                    showProjectToolsDialog()
+                    true
+                }
                 else -> false
             }
         }
@@ -263,10 +284,21 @@ class MainActivity : AppCompatActivity() {
         btnClientHotspotOn = findViewById(R.id.btnClientHotspotOn)
         btnClientHotspotOff = findViewById(R.id.btnClientHotspotOff)
         btnClientSyncConfig = findViewById(R.id.btnClientSyncConfig)
+        btnScanNearbyHosts = findViewById(R.id.btnScanNearbyHosts)
+        btnOpenWifiWithManual = findViewById(R.id.btnOpenWifiWithManual)
+        controllerSelectedHostText = findViewById(R.id.controllerSelectedHostText)
+        manualSsidInput = findViewById(R.id.manualSsidInput)
+        manualPasswordInput = findViewById(R.id.manualPasswordInput)
         btnHostClearLogs = findViewById(R.id.btnHostClearLogs)
         btnControllerClearLogs = findViewById(R.id.btnControllerClearLogs)
         btnUnpairHost = findViewById(R.id.btnUnpairHost)
         btnUnpairController = findViewById(R.id.btnUnpairController)
+        switchHostBondAllowlist = findViewById(R.id.switchHostBondAllowlist)
+        switchHostBondAllowlist.isChecked = AppPrefs.isHostBondAllowlistEnabled(this)
+        switchHostBondAllowlist.setOnCheckedChangeListener { _, checked ->
+            AppPrefs.setHostBondAllowlistEnabled(this, checked)
+            DebugLog.append(this, "HOST_UI", "Bond allowlist: $checked")
+        }
 
         renderCurrentSecret()
 
@@ -313,6 +345,12 @@ class MainActivity : AppCompatActivity() {
         btnClientSyncConfig.setOnClickListener {
             syncHotspotConfigToClient()
         }
+        btnScanNearbyHosts.setOnClickListener {
+            scanAndSelectNearbyHosts()
+        }
+        btnOpenWifiWithManual.setOnClickListener {
+            openWifiWithManualCredentials()
+        }
         btnHostClearLogs.setOnClickListener {
             clearLogs()
         }
@@ -324,6 +362,35 @@ class MainActivity : AppCompatActivity() {
         }
         btnUnpairController.setOnClickListener {
             unpairAsController()
+        }
+
+        findViewById<MaterialButton>(R.id.btnOpenGithub).setOnClickListener {
+            AppTooling.openUrl(this, ProjectInfo.repositoryUrl())
+        }
+        findViewById<MaterialButton>(R.id.btnOpenReleases).setOnClickListener {
+            AppTooling.openUrl(this, ProjectInfo.releasesPageUrl())
+        }
+        findViewById<MaterialButton>(R.id.btnCheckForUpdates).setOnClickListener {
+            checkForUpdatesWithUi()
+        }
+        findViewById<MaterialButton>(R.id.btnTetheringSettings).setOnClickListener {
+            AppTooling.openTetheringSettingsIfPossible(this)
+        }
+        findViewById<MaterialButton>(R.id.btnOpenBluetooth).setOnClickListener {
+            AppTooling.openBluetoothSettings(this)
+        }
+        findViewById<MaterialButton>(R.id.btnBatteryOpt).setOnClickListener {
+            AppTooling.openAppBatterySettings(this)
+        }
+        findViewById<MaterialButton>(R.id.btnAppInfo).setOnClickListener {
+            AppTooling.openInstallPage(this)
+        }
+        findViewById<MaterialButton>(R.id.btnCopyDebugLog).setOnClickListener {
+            AppTooling.copyText(
+                this,
+                getString(R.string.verbose_debug_title),
+                DebugLog.read(this),
+            )
         }
 
         secretInput.setOnEditorActionListener { _, _, _ ->
@@ -341,6 +408,37 @@ class MainActivity : AppCompatActivity() {
                 stopService(Intent(this, HostBleService::class.java))
             }
             applyModeUi(mode)
+        }
+        manualSsidInput.setText(AppPrefs.manualHotspotSsid(this) ?: "")
+        manualPasswordInput.setText(AppPrefs.manualHotspotPassword(this) ?: "")
+        renderSelectedHostTarget()
+        playMainEntrance()
+    }
+
+    private fun playMainEntrance() {
+        val main = findViewById<View>(R.id.mainContentColumn) ?: return
+        val density = resources.displayMetrics.density
+        val lift = 18f * density
+        main.translationY = lift
+        val ease = PathInterpolator(0.2f, 0f, 0f, 1f)
+        main.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(400L)
+            .setInterpolator(ease)
+            .withLayer()
+            .start()
+        val hero = findViewById<View>(R.id.mainHeroColumn)
+        if (hero != null) {
+            hero.translationY = 14f * density
+            hero.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay(50L)
+                .setDuration(400L)
+                .setInterpolator(ease)
+                .withLayer()
+                .start()
         }
     }
 
@@ -391,6 +489,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyModeUi(mode: String) {
+        findViewById<ViewGroup>(R.id.mainContentColumn)?.let { content ->
+            TransitionManager.beginDelayedTransition(
+                content,
+                MaterialFade().setDuration(240L),
+            )
+        }
         val hostVisible = mode == MODE_HOST
         hostSection.visibility = if (hostVisible) View.VISIBLE else View.GONE
         controllerSection.visibility = if (hostVisible) View.GONE else View.VISIBLE
@@ -475,8 +579,14 @@ class MainActivity : AppCompatActivity() {
         controllerPairedDeviceText.text = if (pairedHost.isNullOrBlank()) {
             getString(R.string.controller_paired_device_none)
         } else {
-            getString(R.string.controller_paired_device_value, pairedHost)
+            val label = AppPrefs.pairedHostDisplayName(this)
+            if (!label.isNullOrBlank()) {
+                getString(R.string.controller_paired_device_friendly, label, pairedHost)
+            } else {
+                getString(R.string.controller_paired_device_value, pairedHost)
+            }
         }
+        renderSelectedHostTarget()
         if (paired) {
             controllerPairCodeText.text = getString(R.string.already_paired_once)
         } else if (activePairingSession == null) {
@@ -623,6 +733,7 @@ class MainActivity : AppCompatActivity() {
         AppPrefs.setSharedSecret(this, value)
         AppPrefs.setClientPaired(this, true)
         AppPrefs.setLastPairedHost(this, "manual-secret")
+        AppPrefs.setPairedHostDisplayName(this, "Manual")
         DebugLog.append(this, "CTRL_UI", "Manual/local pair applied with pasted secret")
         renderCurrentSecret()
         Toast.makeText(this, getString(R.string.manual_pair_saved), Toast.LENGTH_SHORT).show()
@@ -654,6 +765,7 @@ class MainActivity : AppCompatActivity() {
                 AppPrefs.setClientPaired(this, true)
                 renderCurrentSecret()
                 activePairingSession = null
+                HotspotWidgetProvider.requestUpdateAll(this)
                 DebugLog.append(this, "CTRL_UI", "Pairing confirmed successfully")
                 controllerPairCodeText.text = getString(R.string.pair_code_none)
                 Toast.makeText(this, getString(R.string.pairing_confirmed), Toast.LENGTH_SHORT).show()
@@ -687,6 +799,8 @@ class MainActivity : AppCompatActivity() {
     private fun syncHotspotConfigToClient() {
         btnClientSyncConfig.isEnabled = false
         DebugLog.append(this, "CTRL_UI", "Sync hotspot config requested")
+        AppPrefs.setManualHotspotSsid(this, manualSsidInput.text?.toString())
+        AppPrefs.setManualHotspotPassword(this, manualPasswordInput.text?.toString())
         backgroundExecutor.execute {
             val config = BlePairingClient.fetchHotspotConfig(this)
             runOnUiThread {
@@ -697,8 +811,12 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     DebugLog.append(this, "CTRL_UI", "Hotspot config sync success: ${config.take(80)}")
                     clientHotspotConfigText.text = formatHotspotConfigForDisplay(config)
-                    val creds = parseSsidPassword(config)
+                    val creds = HotspotConfigParser.parseSsidPassword(config)
                     if (creds != null) {
+                        manualSsidInput.setText(creds.ssid)
+                        manualPasswordInput.setText(creds.password)
+                        AppPrefs.setManualHotspotSsid(this, creds.ssid)
+                        AppPrefs.setManualHotspotPassword(this, creds.password)
                         Toast.makeText(
                             this,
                             getString(R.string.client_sync_connect_hint, creds.ssid, creds.password),
@@ -717,28 +835,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyVerboseUi(enabled: Boolean) {
+        findViewById<ViewGroup>(R.id.mainContentColumn)?.let { content ->
+            TransitionManager.beginDelayedTransition(
+                content,
+                MaterialFade().setDuration(220L),
+            )
+        }
         hostVerboseTitleText.visibility = if (enabled) View.VISIBLE else View.GONE
         hostDebugLogText.visibility = if (enabled) View.VISIBLE else View.GONE
         btnHostClearLogs.visibility = if (enabled) View.VISIBLE else View.GONE
         controllerVerboseTitleText.visibility = if (enabled) View.VISIBLE else View.GONE
         controllerDebugLogText.visibility = if (enabled) View.VISIBLE else View.GONE
         btnControllerClearLogs.visibility = if (enabled) View.VISIBLE else View.GONE
-    }
-
-    private data class HotspotCredentials(val ssid: String, val password: String)
-
-    private fun parseSsidPassword(raw: String): HotspotCredentials? {
-        val ssidRegexes = listOf(
-            Regex("""(?i)\bssid\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
-            Regex("""(?i)\bnetworkName\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
-        )
-        val passRegexes = listOf(
-            Regex("""(?i)\b(passphrase|password|psk|preSharedKey)\b\s*[:=]\s*['"]?([^'";,\n]+)"""),
-        )
-        val ssid = ssidRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(1)?.trim() }
-        val pass = passRegexes.firstNotNullOfOrNull { it.find(raw)?.groupValues?.getOrNull(2)?.trim() }
-        if (ssid.isNullOrBlank() || pass.isNullOrBlank()) return null
-        return HotspotCredentials(ssid, pass)
     }
 
     private fun formatHotspotConfigForDisplay(raw: String): String {
@@ -755,6 +863,134 @@ class MainActivity : AppCompatActivity() {
             out = out.chunked(96).joinToString("\n")
         }
         return out.take(8_000)
+    }
+
+    private fun openWifiWithManualCredentials() {
+        val ssid = manualSsidInput.text?.toString()?.trim().orEmpty()
+        val pass = manualPasswordInput.text?.toString()?.trim().orEmpty()
+        if (ssid.isBlank() || pass.isBlank()) {
+            Toast.makeText(this, getString(R.string.manual_hotspot_missing), Toast.LENGTH_SHORT).show()
+            return
+        }
+        AppPrefs.setManualHotspotSsid(this, ssid)
+        AppPrefs.setManualHotspotPassword(this, pass)
+        Toast.makeText(this, getString(R.string.client_sync_connect_hint, ssid, pass), Toast.LENGTH_LONG).show()
+        runCatching {
+            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+        }
+    }
+
+    private fun renderSelectedHostTarget() {
+        val selected = AppPrefs.preferredHostAddress(this)
+        controllerSelectedHostText.text = if (selected.isNullOrBlank()) {
+            getString(R.string.preferred_host_none)
+        } else {
+            getString(R.string.preferred_host_value, selected)
+        }
+    }
+
+    private fun scanAndSelectNearbyHosts() {
+        btnScanNearbyHosts.isEnabled = false
+        Toast.makeText(this, getString(R.string.scan_hosts_working), Toast.LENGTH_SHORT).show()
+        backgroundExecutor.execute {
+            val hosts = ControllerCommandSender.scanNearbyHosts(this)
+            runOnUiThread {
+                btnScanNearbyHosts.isEnabled = true
+                if (hosts.isEmpty()) {
+                    Toast.makeText(this, getString(R.string.scan_hosts_none_found), Toast.LENGTH_SHORT).show()
+                    return@runOnUiThread
+                }
+                showHostPickerDialog(hosts)
+            }
+        }
+    }
+
+    private fun showHostPickerDialog(hosts: List<HostDeviceSummary>) {
+        val labels = hosts.mapIndexed { idx, d ->
+            val n = d.name?.takeIf { it.isNotBlank() } ?: "Host ${idx + 1}"
+            "$n (${d.address})"
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.scan_hosts_pick_title)
+            .setItems(labels) { _, which ->
+                val chosen = hosts.getOrNull(which) ?: return@setItems
+                AppPrefs.setPreferredHostAddress(this, chosen.address)
+                AppPrefs.setPairedHostDisplayName(
+                    this,
+                    chosen.name?.trim()?.takeIf { it.isNotBlank() },
+                )
+                renderSelectedHostTarget()
+                HotspotWidgetProvider.requestUpdateAll(this)
+                Toast.makeText(this, getString(R.string.scan_hosts_selected, chosen.address), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun checkForUpdatesWithUi() {
+        Toast.makeText(this, R.string.update_checking, Toast.LENGTH_SHORT).show()
+        UpdateChecker.checkInBackground { r ->
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (r.success && r.isNewerThanInstalled) {
+                    val rel = r.releaseUrl
+                    val msg = buildString {
+                        append(r.userMessage)
+                        r.bodyPreview?.let { pre ->
+                            append("\n\n")
+                            append(pre)
+                        }
+                    }
+                    if (rel != null) {
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.dialog_update_title)
+                            .setMessage(msg)
+                            .setPositiveButton(R.string.update_view_release) { _, _ ->
+                                AppTooling.openUrl(this, rel)
+                            }
+                            .setNegativeButton(R.string.update_dismiss, null)
+                            .show()
+                    } else {
+                        Toast.makeText(this, r.userMessage, Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    Toast.makeText(this, r.userMessage, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun showProjectToolsDialog() {
+        val labels = arrayOf(
+            getString(R.string.btn_open_github),
+            getString(R.string.btn_open_releases_module),
+            getString(R.string.btn_check_updates),
+            getString(R.string.btn_tethering_settings),
+            getString(R.string.btn_bluetooth_settings),
+            getString(R.string.btn_battery_optimization),
+            getString(R.string.btn_app_info),
+            getString(R.string.btn_copy_debug_log),
+        )
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.project_tools_title)
+            .setItems(labels) { _, which ->
+                when (which) {
+                    0 -> AppTooling.openUrl(this, ProjectInfo.repositoryUrl())
+                    1 -> AppTooling.openUrl(this, ProjectInfo.releasesPageUrl())
+                    2 -> checkForUpdatesWithUi()
+                    3 -> AppTooling.openTetheringSettingsIfPossible(this)
+                    4 -> AppTooling.openBluetoothSettings(this)
+                    5 -> AppTooling.openAppBatterySettings(this)
+                    6 -> AppTooling.openInstallPage(this)
+                    7 -> AppTooling.copyText(
+                        this,
+                        getString(R.string.verbose_debug_title),
+                        DebugLog.read(this),
+                    )
+                }
+            }
+            .setNegativeButton(R.string.update_dismiss, null)
+            .show()
     }
 
     private fun currentMode(): String {

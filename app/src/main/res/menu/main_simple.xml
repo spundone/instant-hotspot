@@ -9,4 +9,8 @@
         android:id="@+id/menu_rerun_onboarding"
         android:title="@string/main_menu_rerun_onboarding"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_project_tools"
+        android:title="@string/main_menu_project_tools"
+        app:showAsAction="never" />
 </menu>

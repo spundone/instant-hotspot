@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="ih_screen_padding">20dp</dimen>
+    <dimen name="ih_section_gap">12dp</dimen>
+    <dimen name="ih_card_inner_pad">16dp</dimen>
+    <dimen name="ih_button_min_h">56dp</dimen>
+    <dimen name="ih_column_gutter">16dp</dimen>
+</resources>

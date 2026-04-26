@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:fitsSystemWindows="true"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/ih_screen_padding"
+    android:paddingTop="@dimen/ih_screen_padding"
+    android:paddingEnd="@dimen/ih_screen_padding"
+    android:paddingBottom="@dimen/ih_screen_padding">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls">
+
+        <LinearLayout
+            android:id="@+id/mainHeroColumn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:alpha="0"
+            android:animateLayoutChanges="true"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+            <include layout="@layout/include_ih_hero_mode" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/mainScroll"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="@dimen/ih_column_gutter"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls">
+
+        <LinearLayout
+            android:id="@+id/mainContentColumn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:alpha="0"
+            android:animateLayoutChanges="true"
+            android:clipToPadding="false"
+            android:orientation="vertical">
+
+            <include layout="@layout/include_ih_host_section" />
+
+            <include
+                layout="@layout/include_ih_controller_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ih_section_gap" />
+
+            <include
+                layout="@layout/include_ih_project_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ih_section_gap" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>
