@@ -34,7 +34,6 @@ import com.spandan.instanthotspot.R
 import com.spandan.instanthotspot.core.AppPrefs
 import com.spandan.instanthotspot.core.BleProtocol
 import com.spandan.instanthotspot.core.CommandCodec
-import com.spandan.instanthotspot.core.CommandSecurity
 import com.spandan.instanthotspot.core.DebugLog
 import com.spandan.instanthotspot.core.HostPairingPersistence
 import com.spandan.instanthotspot.core.HostPendingPairSnapshot
@@ -315,20 +314,27 @@ class HostBleService : Service() {
         }
         val envelope = CommandCodec.decode(raw) ?: return false
         val payload = CommandCodec.payload(envelope.command, envelope.timestampMs, envelope.nonce)
-        val perDevice = PairedControllerRegistry.secretForAddress(this, device.address)
-        val secret = perDevice
-            ?: if (PairedControllerRegistry.hasAny(this)) {
-                null
-            } else {
-                AppPrefs.sharedSecret(this)
-            }
-        if (secret == null || !CommandSecurity.verify(payload, envelope.signature, secret)) {
+        val resolution = PairedControllerRegistry.resolveCommandSecret(
+            this,
+            device.address,
+            payload,
+            envelope.signature,
+        )
+        if (resolution == null) {
             DebugLog.append(
                 this,
                 "HOST_CMD",
-                "Signature reject from ${device.address} (per-device: ${perDevice != null}, unknown controller)",
+                "Signature reject from ${device.address} (try each paired secret if MAC changed — BLE privacy)",
             )
             return false
+        }
+        resolution.remapFromStoredAddress?.let { old ->
+            PairedControllerRegistry.replaceBluetoothAddress(this, old, device.address)
+            DebugLog.append(
+                this,
+                "HOST_CMD",
+                "Paired controller address updated $old → ${device.address} (BLE privacy / MAC rotation)",
+            )
         }
 
         // Basic replay window plus monotonic timestamp check.

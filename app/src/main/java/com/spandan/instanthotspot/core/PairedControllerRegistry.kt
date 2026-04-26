@@ -5,8 +5,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Host stores one derived secret per paired controller (Bluetooth address).
- * Command verification uses the secret for the GATT writer's device address.
+ * Host stores one derived secret per paired controller (Bluetooth address at confirm time).
+ * Command verification prefers that address, but **BLE privacy** can rotate the peripheral
+ * address, so [resolveCommandSecret] falls back to checking the HMAC against each stored
+ * secret and [replaceBluetoothAddress] updates the stored address when we learn a new one.
  */
 data class PairedControllerEntry(
     val address: String,
@@ -86,6 +88,68 @@ object PairedControllerRegistry {
         if (address.isBlank()) return null
         val want = normAddr(address)
         return all(context).firstOrNull { normAddr(it.address) == want }?.secret
+    }
+
+    data class CommandSecretResolution(
+        val secret: String,
+        /** If set, registry still lists this address — replace with the BLE-reported address. */
+        val remapFromStoredAddress: String?,
+    )
+
+    /**
+     * Resolve HMAC secret for a signed command: direct address match, then try each paired
+     * secret (handles Android BLE MAC rotation), then legacy shared secret when the registry is empty.
+     */
+    fun resolveCommandSecret(
+        context: Context,
+        seenAddress: String,
+        payload: String,
+        signature: String,
+    ): CommandSecretResolution? {
+        migrateIfNeeded(context)
+        val seen = normAddr(seenAddress)
+        if (seen.isBlank()) return null
+
+        val direct = all(context).firstOrNull { normAddr(it.address) == seen }
+        if (direct != null && CommandSecurity.verify(payload, signature, direct.secret)) {
+            return CommandSecretResolution(direct.secret, null)
+        }
+
+        for (e in all(context)) {
+            if (CommandSecurity.verify(payload, signature, e.secret)) {
+                val remap = if (normAddr(e.address) != seen) normAddr(e.address) else null
+                return CommandSecretResolution(e.secret, remap)
+            }
+        }
+
+        if (!hasAny(context)) {
+            val s = AppPrefs.sharedSecret(context)
+            if (CommandSecurity.verify(payload, signature, s)) {
+                return CommandSecretResolution(s, null)
+            }
+        }
+        return null
+    }
+
+    /** Update stored BLE address when privacy rotation changes the address seen at pairing. */
+    fun replaceBluetoothAddress(context: Context, oldStoredAddress: String, newSeenAddress: String) {
+        val o = normAddr(oldStoredAddress)
+        val n = normAddr(newSeenAddress)
+        if (o.isBlank() || n.isBlank() || o == n) return
+        val before = loadJsonOnly(context)
+        val list = before.map { e ->
+            if (normAddr(e.address) == o) {
+                PairedControllerEntry(n, e.secret, e.pairedAtMs)
+            } else {
+                e
+            }
+        }
+        if (list == before) return
+        save(context, list)
+        val last = AppPrefs.lastPairedController(context)?.trim()?.let { normAddr(it) }
+        if (last == o) {
+            AppPrefs.setLastPairedController(context, n)
+        }
     }
 
     fun upsert(context: Context, address: String, secret: String) {
