@@ -41,7 +41,7 @@ class OnboardingRoleFragment : Fragment(R.layout.fragment_onboarding_role) {
             applyFromRadio()
         }
         view.findViewById<MaterialButton>(R.id.obDownloadMagiskReleases).setOnClickListener {
-            AppTooling.openUrl(requireContext(), ProjectInfo.releasesPageUrl())
+            AppTooling.openUrl(requireContext(), ProjectInfo.latestReleasePageUrl())
         }
         val prereq = view.findViewById<MaterialCardView>(R.id.obHostPrereqCard)
         val verify = view.findViewById<MaterialButton>(R.id.obVerifyHostSetup)

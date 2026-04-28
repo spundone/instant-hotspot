@@ -9,6 +9,7 @@ object ProjectInfo {
 
     fun repositoryUrl(): String = "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}"
     fun releasesPageUrl(): String = "${repositoryUrl()}/releases"
+    fun latestReleasePageUrl(): String = "${repositoryUrl()}/releases/latest"
     fun issuesUrl(): String = "${repositoryUrl()}/issues"
     fun latestReleaseApiUrl(): String =
         "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest"

@@ -450,7 +450,7 @@ class MainActivity : AppCompatActivity() {
             AppTooling.openUrl(this, ProjectInfo.repositoryUrl())
         }
         findViewById<MaterialButton>(R.id.btnOpenReleases).setOnClickListener {
-            AppTooling.openUrl(this, ProjectInfo.releasesPageUrl())
+            AppTooling.openUrl(this, ProjectInfo.latestReleasePageUrl())
         }
         findViewById<MaterialButton>(R.id.btnOpenSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -1285,7 +1285,7 @@ class MainActivity : AppCompatActivity() {
             .setItems(labels) { _, which ->
                 when (which) {
                     0 -> AppTooling.openUrl(this, ProjectInfo.repositoryUrl())
-                    1 -> AppTooling.openUrl(this, ProjectInfo.releasesPageUrl())
+                    1 -> AppTooling.openUrl(this, ProjectInfo.latestReleasePageUrl())
                     2 -> checkForUpdatesWithUi()
                     3 -> AppTooling.openTetheringSettingsIfPossible(this)
                     4 -> AppTooling.openBluetoothSettings(this)

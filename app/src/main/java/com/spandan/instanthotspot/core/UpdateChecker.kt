@@ -81,7 +81,8 @@ object UpdateChecker {
         }
         val o = JSONObject(text)
         val tag = o.optString("tag_name", "").trim().ifBlank { o.optString("name", "") }
-        val htmlUrl = o.optString("html_url", ProjectInfo.releasesPageUrl())
+        // `html_url` points at the tag page; use a stable endpoint so links never break if tags are cleaned up.
+        val stableUrl = ProjectInfo.latestReleasePageUrl()
         val body = o.optString("body", "").lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
@@ -92,7 +93,7 @@ object UpdateChecker {
         return UpdateCheckResult(
             success = true,
             latestTag = tag,
-            releaseUrl = htmlUrl,
+            releaseUrl = stableUrl,
             bodyPreview = body.ifBlank { null },
             isNewerThanInstalled = newer,
             userMessage = when {
